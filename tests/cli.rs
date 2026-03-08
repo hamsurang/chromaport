@@ -97,3 +97,37 @@ fn activate_flag_accepted() {
         "--activate should be accepted: {combined}"
     );
 }
+
+#[test]
+fn help_shows_update_subcommand() {
+    cmd()
+        .arg("--help")
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("update"));
+}
+
+#[test]
+fn update_subcommand_help() {
+    cmd()
+        .args(["update", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Check for updates"));
+}
+
+#[test]
+fn existing_flags_work_with_subcommand_added() {
+    // Ensure existing flags still work after subcommand was added
+    let assert = cmd().args(["--editor", "vscode", "--yes"]).assert();
+    let output = assert.get_output().clone();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let combined = format!("{stdout}{stderr}");
+
+    // Should not be a usage/parse error
+    assert!(
+        !combined.contains("unexpected argument") && !combined.contains("invalid value"),
+        "existing flags should still work: {combined}"
+    );
+}

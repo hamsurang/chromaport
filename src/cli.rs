@@ -1,4 +1,4 @@
-use clap::{Parser, ValueEnum};
+use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
 #[command(
@@ -7,6 +7,9 @@ use clap::{Parser, ValueEnum};
     long_about = None
 )]
 pub struct Cli {
+    #[command(subcommand)]
+    pub command: Option<Command>,
+
     /// Source editor to read themes from
     #[arg(short, long, value_enum)]
     pub editor: Option<Editor>,
@@ -27,6 +30,12 @@ pub struct Cli {
     /// Deprecated: themes are no longer activated by default. Use --activate instead.
     #[arg(long, hide = true)]
     pub no_activate: bool,
+}
+
+#[derive(Subcommand)]
+pub enum Command {
+    /// Check for updates and upgrade chromaport
+    Update,
 }
 
 #[derive(Clone, ValueEnum, Debug, PartialEq)]

@@ -6,6 +6,10 @@
 
 Your favorite editor theme, everywhere.
 
+## Name
+
+**chroma** (color) + **port** (carry across) — carry your editor colors everywhere.
+
 ## Install
 
 ### Homebrew
@@ -29,6 +33,31 @@ cd chromaport
 cargo install --path .
 ```
 
+## Update
+
+chromaport automatically checks for new releases once a week. When an update is available, you'll see a notice after running any command:
+
+```
+A new release of chromaport is available: 0.2.0 → 0.3.0
+Run `chromaport update` to upgrade.
+```
+
+To update, simply run:
+
+```sh
+chromaport update
+```
+
+This auto-detects your install method (Homebrew or Cargo) and runs the appropriate upgrade command.
+
+To disable the automatic update check, set:
+
+```sh
+export CHROMAPORT_NO_UPDATE_CHECK=1
+```
+
+The check is also automatically disabled in CI environments and non-interactive shells.
+
 ## Usage
 
 Run `chromaport` and follow the interactive prompts:
@@ -50,13 +79,16 @@ Converting 2 theme(s)...
 ### Options
 
 ```
-chromaport [OPTIONS]
+chromaport [OPTIONS] [COMMAND]
+
+Commands:
+  update    Check for updates and upgrade chromaport
 
 Options:
   -e, --editor <EDITOR>    Source editor [possible values: vscode, cursor]
-  -t, --target <TARGET>    Target app [possible values: superset, warp]
+  -t, --target <TARGET>    Target app [possible values: superset, warp, ghostty]
   -y, --yes                Non-interactive mode (import active theme, overwrite if exists)
-      --no-activate        Do not change the active theme after import
+      --activate           Apply the theme to the target app's config
   -h, --help               Print help
   -V, --version            Print version
 ```
