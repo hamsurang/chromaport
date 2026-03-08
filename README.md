@@ -1,6 +1,6 @@
 # chromaport
 
-Migrate VS Code / Cursor themes to [Superset](https://superset.dev), [Warp](https://www.warp.dev), and more.
+Your favorite editor theme, everywhere.
 
 ## Install
 
