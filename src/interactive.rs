@@ -87,7 +87,10 @@ pub fn select_target(available: &[Target]) -> Result<Target> {
         return Ok(t);
     }
 
-    let options: Vec<String> = available.iter().map(|t| target_name(t).to_string()).collect();
+    let options: Vec<String> = available
+        .iter()
+        .map(|t| target_name(t).to_string())
+        .collect();
     let selected = Select::new("Select target app:", options.clone())
         .prompt()
         .map_err(handle_inquire_error)?;

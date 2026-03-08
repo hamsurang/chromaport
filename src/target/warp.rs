@@ -1,5 +1,5 @@
 use crate::ir::{ThemeIR, ThemeType};
-use crate::store::{theme_slug, atomic_write};
+use crate::store::{atomic_write, theme_slug};
 use anyhow::{Context, Result};
 use serde::Serialize;
 

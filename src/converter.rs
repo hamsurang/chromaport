@@ -150,8 +150,8 @@ pub fn convert(entry: &ThemeEntry, theme_json: &Value) -> Result<ThemeIR> {
     let d = defaults(&theme_type);
 
     // Parse via serde for typed access
-    let parsed: VsCodeThemeJson = serde_json::from_value(theme_json.clone())
-        .unwrap_or_else(|_| VsCodeThemeJson {
+    let parsed: VsCodeThemeJson =
+        serde_json::from_value(theme_json.clone()).unwrap_or_else(|_| VsCodeThemeJson {
             colors: Default::default(),
             token_colors: Default::default(),
         });
@@ -166,14 +166,22 @@ pub fn convert(entry: &ThemeEntry, theme_json: &Value) -> Result<ThemeIR> {
     );
     let accent = get_color(
         colors,
-        &["activityBarBadge.background", "button.background", "focusBorder"],
+        &[
+            "activityBarBadge.background",
+            "button.background",
+            "focusBorder",
+        ],
         d["accent"],
     );
     let cursor = get_color(colors, &["editorCursor.foreground"], foreground.as_str());
     let selection_bg = get_color(colors, &["editor.selectionBackground"], d["selection_bg"]);
     let border = get_color(
         colors,
-        &["editorIndentGuide.background", "editorGroup.border", "panel.border"],
+        &[
+            "editorIndentGuide.background",
+            "editorGroup.border",
+            "panel.border",
+        ],
         d["border"],
     );
     let sidebar_bg = get_color(colors, &["sideBar.background"], background.as_str());
@@ -192,16 +200,8 @@ pub fn convert(entry: &ThemeEntry, theme_json: &Value) -> Result<ThemeIR> {
     let chart_colors = extract_chart_colors(&parsed.token_colors, &theme_type);
 
     // Terminal ANSI colors
-    let term_bg = get_color(
-        colors,
-        &["terminal.background"],
-        background.as_str(),
-    );
-    let term_fg = get_color(
-        colors,
-        &["terminal.foreground"],
-        foreground.as_str(),
-    );
+    let term_bg = get_color(colors, &["terminal.background"], background.as_str());
+    let term_fg = get_color(colors, &["terminal.foreground"], foreground.as_str());
     let term_cursor = get_color(colors, &["editorCursor.foreground"], cursor.as_str());
     let term_selection = colors
         .get("terminal.selectionBackground")
@@ -209,21 +209,65 @@ pub fn convert(entry: &ThemeEntry, theme_json: &Value) -> Result<ThemeIR> {
         .and_then(|v| HexColor::parse(v).ok());
 
     let ansi = |normal_key: &str, bright_key: &str, dk: &str, lk: &str| {
-        let fallback = if matches!(theme_type, ThemeType::Dark) { dk } else { lk };
+        let fallback = if matches!(theme_type, ThemeType::Dark) {
+            dk
+        } else {
+            lk
+        };
         (
             get_color(colors, &[normal_key], d.get(dk).unwrap_or(&fallback)),
             get_color(colors, &[bright_key], d.get(lk).unwrap_or(&fallback)),
         )
     };
 
-    let (n_black, b_black) = ansi("terminal.ansiBlack", "terminal.ansiBrightBlack", "ansi_black", "ansi_bright_black");
-    let (n_red, b_red) = ansi("terminal.ansiRed", "terminal.ansiBrightRed", "ansi_red", "ansi_bright_red");
-    let (n_green, b_green) = ansi("terminal.ansiGreen", "terminal.ansiBrightGreen", "ansi_green", "ansi_bright_green");
-    let (n_yellow, b_yellow) = ansi("terminal.ansiYellow", "terminal.ansiBrightYellow", "ansi_yellow", "ansi_bright_yellow");
-    let (n_blue, b_blue) = ansi("terminal.ansiBlue", "terminal.ansiBrightBlue", "ansi_blue", "ansi_bright_blue");
-    let (n_magenta, b_magenta) = ansi("terminal.ansiMagenta", "terminal.ansiBrightMagenta", "ansi_magenta", "ansi_bright_magenta");
-    let (n_cyan, b_cyan) = ansi("terminal.ansiCyan", "terminal.ansiBrightCyan", "ansi_cyan", "ansi_bright_cyan");
-    let (n_white, b_white) = ansi("terminal.ansiWhite", "terminal.ansiBrightWhite", "ansi_white", "ansi_bright_white");
+    let (n_black, b_black) = ansi(
+        "terminal.ansiBlack",
+        "terminal.ansiBrightBlack",
+        "ansi_black",
+        "ansi_bright_black",
+    );
+    let (n_red, b_red) = ansi(
+        "terminal.ansiRed",
+        "terminal.ansiBrightRed",
+        "ansi_red",
+        "ansi_bright_red",
+    );
+    let (n_green, b_green) = ansi(
+        "terminal.ansiGreen",
+        "terminal.ansiBrightGreen",
+        "ansi_green",
+        "ansi_bright_green",
+    );
+    let (n_yellow, b_yellow) = ansi(
+        "terminal.ansiYellow",
+        "terminal.ansiBrightYellow",
+        "ansi_yellow",
+        "ansi_bright_yellow",
+    );
+    let (n_blue, b_blue) = ansi(
+        "terminal.ansiBlue",
+        "terminal.ansiBrightBlue",
+        "ansi_blue",
+        "ansi_bright_blue",
+    );
+    let (n_magenta, b_magenta) = ansi(
+        "terminal.ansiMagenta",
+        "terminal.ansiBrightMagenta",
+        "ansi_magenta",
+        "ansi_bright_magenta",
+    );
+    let (n_cyan, b_cyan) = ansi(
+        "terminal.ansiCyan",
+        "terminal.ansiBrightCyan",
+        "ansi_cyan",
+        "ansi_bright_cyan",
+    );
+    let (n_white, b_white) = ansi(
+        "terminal.ansiWhite",
+        "terminal.ansiBrightWhite",
+        "ansi_white",
+        "ansi_bright_white",
+    );
 
     // Generate a slug-based ID from the name
     let id = crate::store::theme_slug(&entry.label);

@@ -45,7 +45,10 @@ impl ThemeReader {
     fn scan_extensions(&self) -> Result<Vec<ThemeEntry>> {
         let entries = std::fs::read_dir(&self.extensions_dir)
             .with_context(|| {
-                format!("cannot read extensions dir: {}", self.extensions_dir.display())
+                format!(
+                    "cannot read extensions dir: {}",
+                    self.extensions_dir.display()
+                )
             })?
             .filter_map(|e| e.ok())
             .map(|e| e.path())
@@ -100,10 +103,7 @@ fn parse_extension_themes(ext_dir: &Path) -> Result<Vec<ThemeEntry>> {
             Some(p) => p,
             None => continue,
         };
-        let ui_theme = theme["uiTheme"]
-            .as_str()
-            .unwrap_or("vs-dark")
-            .to_string();
+        let ui_theme = theme["uiTheme"].as_str().unwrap_or("vs-dark").to_string();
         let id = theme["id"].as_str().map(|s| s.to_string());
         let settings_id = id.unwrap_or_else(|| label.clone());
 
@@ -128,10 +128,14 @@ fn read_theme_json_with_includes(path: &Path, depth: u8) -> Result<serde_json::V
     }
 
     const MAX_THEME_BYTES: u64 = 10 * 1024 * 1024;
-    let meta = std::fs::metadata(path)
-        .with_context(|| format!("cannot stat {}", path.display()))?;
+    let meta =
+        std::fs::metadata(path).with_context(|| format!("cannot stat {}", path.display()))?;
     if meta.len() > MAX_THEME_BYTES {
-        anyhow::bail!("theme file too large ({} bytes): {}", meta.len(), path.display());
+        anyhow::bail!(
+            "theme file too large ({} bytes): {}",
+            meta.len(),
+            path.display()
+        );
     }
 
     let raw = std::fs::read_to_string(path)
@@ -157,10 +161,9 @@ fn read_theme_json_with_includes(path: &Path, depth: u8) -> Result<serde_json::V
 /// Merge child theme on top of base theme (child wins on conflict).
 fn merge_themes(mut base: serde_json::Value, child: serde_json::Value) -> serde_json::Value {
     // Merge colors: child overrides base
-    if let (Some(base_colors), Some(child_colors)) = (
-        base["colors"].as_object_mut(),
-        child["colors"].as_object(),
-    ) {
+    if let (Some(base_colors), Some(child_colors)) =
+        (base["colors"].as_object_mut(), child["colors"].as_object())
+    {
         for (k, v) in child_colors {
             base_colors.insert(k.clone(), v.clone());
         }
@@ -179,7 +182,12 @@ fn merge_themes(mut base: serde_json::Value, child: serde_json::Value) -> serde_
     }
 
     // Top-level fields from child override base
-    for key in &["semanticHighlighting", "semanticTokenColors", "name", "type"] {
+    for key in &[
+        "semanticHighlighting",
+        "semanticTokenColors",
+        "name",
+        "type",
+    ] {
         if !child[key].is_null() {
             base[key] = child[key].clone();
         }

@@ -56,8 +56,7 @@ pub fn write(ir: &ThemeIR, opts: WriteOptions) -> Result<()> {
     }
 
     let output = serde_json::to_vec_pretty(&state).context("failed to serialize app-state")?;
-    atomic_write(&path, &output)
-        .with_context(|| format!("failed to write {}", path.display()))?;
+    atomic_write(&path, &output).with_context(|| format!("failed to write {}", path.display()))?;
 
     println!("  ✔ {} → {}", ir.name, path.display());
     if opts.set_active {

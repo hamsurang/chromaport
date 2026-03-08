@@ -15,7 +15,8 @@ pub fn atomic_write(target: &Path, contents: &[u8]) -> Result<()> {
 
     let mut tmp = NamedTempFile::new_in(dir).context("cannot create temp file")?;
 
-    tmp.write_all(contents).context("write to temp file failed")?;
+    tmp.write_all(contents)
+        .context("write to temp file failed")?;
     tmp.flush().context("flush failed")?;
     tmp.as_file().sync_all().context("fsync failed")?;
 
