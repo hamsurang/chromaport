@@ -7,7 +7,8 @@ Migrate VS Code / Cursor themes to [Superset](https://superset.dev), [Warp](http
 ### Homebrew
 
 ```sh
-brew install hamsurang/chromaport/chromaport
+brew tap hamsurang/chromaport
+brew install chromaport
 ```
 
 ### Cargo
