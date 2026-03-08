@@ -1,6 +1,6 @@
 [package]
 name = "chromaport"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 description = "Migrate VS Code / Cursor themes to Superset, Warp, and more"
 license = "MIT"
