@@ -1,12 +1,12 @@
 [package]
 name = "chromaport"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Migrate VS Code / Cursor themes to Superset, Warp, and more"
 license = "MIT"
 repository = "https://github.com/hamsurang/chromaport"
 homepage = "https://github.com/hamsurang/chromaport"
-keywords = ["theme", "vscode", "cursor", "superset", "warp"]
+keywords = ["theme", "vscode", "cursor", "superset", "warp", "ghostty"]
 
 [[bin]]
 name = "chromaport"
@@ -22,6 +22,8 @@ rayon = "1"
 serde = { version = "1", features = ["derive"] }
 serde_yaml_ng = "0.10"
 serde_json = "1"
+similar = { version = "2", features = ["inline"] }
+console = "0.15"
 tempfile = "3"
 
 [dev-dependencies]

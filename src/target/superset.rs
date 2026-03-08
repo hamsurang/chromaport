@@ -1,11 +1,8 @@
 use crate::ir::ThemeIR;
 use crate::store::atomic_write;
+use crate::target::ActivateResult;
 use anyhow::{Context, Result};
-
-pub struct WriteOptions {
-    pub set_active: bool,
-    pub overwrite: bool,
-}
+use std::path::{Path, PathBuf};
 
 pub fn detect() -> bool {
     dirs::home_dir()
@@ -13,10 +10,14 @@ pub fn detect() -> bool {
         .unwrap_or(false)
 }
 
-pub fn write(ir: &ThemeIR, opts: WriteOptions) -> Result<()> {
-    let path = dirs::home_dir()
+fn app_state_path() -> Result<PathBuf> {
+    Ok(dirs::home_dir()
         .context("cannot determine home directory")?
-        .join(".superset/app-state.json");
+        .join(".superset/app-state.json"))
+}
+
+pub fn write(ir: &ThemeIR) -> Result<PathBuf> {
+    let path = app_state_path()?;
 
     if is_superset_running() {
         anyhow::bail!(
@@ -38,37 +39,57 @@ pub fn write(ir: &ThemeIR, opts: WriteOptions) -> Result<()> {
     let new_theme = ir_to_json(ir);
 
     if let Some(pos) = custom_themes.iter().position(|t| t["id"] == ir.id) {
-        if opts.overwrite {
-            custom_themes[pos] = new_theme;
-        } else {
-            eprintln!(
-                "  Theme '{}' already exists in Superset. Use --yes to overwrite.",
-                ir.name
-            );
-            return Ok(());
-        }
+        custom_themes[pos] = new_theme;
     } else {
         custom_themes.push(new_theme);
-    }
-
-    if opts.set_active {
-        state["themeState"]["activeThemeId"] = serde_json::json!(ir.id);
     }
 
     let output = serde_json::to_vec_pretty(&state).context("failed to serialize app-state")?;
     atomic_write(&path, &output).with_context(|| format!("failed to write {}", path.display()))?;
 
-    println!("  ✔ {} → {}", ir.name, path.display());
-    if opts.set_active {
-        println!("    Active theme set to '{}'", ir.name);
-    }
-    println!("    Restart Superset to apply.");
+    Ok(path)
+}
 
-    Ok(())
+pub fn activate(ir: &ThemeIR) -> Result<ActivateResult> {
+    let path = app_state_path()?;
+
+    let old_content = std::fs::read_to_string(&path)
+        .with_context(|| format!("cannot read {}", path.display()))?;
+
+    let mut state: serde_json::Value =
+        serde_json::from_str(&old_content).context("app-state.json is not valid JSON")?;
+
+    let old_active = state["themeState"]["activeThemeId"]
+        .as_str()
+        .unwrap_or("(none)")
+        .to_string();
+
+    state["themeState"]["activeThemeId"] = serde_json::json!(ir.id);
+
+    let new_content =
+        serde_json::to_string_pretty(&state).context("failed to serialize app-state")?;
+
+    let summary = format!("activeThemeId: {} -> {}", old_active, ir.id);
+
+    Ok(ActivateResult::Modify {
+        config_path: path,
+        old_content,
+        new_content,
+        summary,
+    })
+}
+
+pub fn guide(ir: &ThemeIR, written_path: &Path) -> String {
+    format!(
+        "  Theme '{}' written to {}.\n  \
+         Restart Superset to see it.\n  \
+         Use --activate to set it as the active theme.",
+        ir.name,
+        written_path.display()
+    )
 }
 
 fn is_superset_running() -> bool {
-    // Check for the daemon pid file
     dirs::home_dir()
         .map(|h| h.join(".superset/terminal-host.pid").exists())
         .unwrap_or(false)
@@ -146,4 +167,48 @@ fn ir_to_json(ir: &ThemeIR) -> serde_json::Value {
             "brightWhite": t.bright.white.as_str(),
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ir::test_fixtures::make_test_ir;
+
+    #[test]
+    fn ir_to_json_contains_required_fields() {
+        let ir = make_test_ir();
+        let json = ir_to_json(&ir);
+
+        assert_eq!(json["id"], "test-theme");
+        assert_eq!(json["name"], "Test Theme");
+        assert_eq!(json["type"], "dark");
+        assert_eq!(json["author"], "chromaport");
+        assert_eq!(json["isCustom"], true);
+        assert_eq!(json["isBuiltIn"], false);
+    }
+
+    #[test]
+    fn ir_to_json_ui_colors_mapped() {
+        let ir = make_test_ir();
+        let json = ir_to_json(&ir);
+
+        assert_eq!(json["ui"]["background"], "#1E1E1E");
+        assert_eq!(json["ui"]["foreground"], "#D4D4D4");
+        assert_eq!(json["ui"]["primary"], "#0078D4");
+        assert_eq!(json["ui"]["border"], "#3E3E3E");
+        assert_eq!(json["ui"]["chart1"], "#E06C75");
+        assert_eq!(json["ui"]["chart5"], "#56B6C2");
+    }
+
+    #[test]
+    fn ir_to_json_terminal_colors_mapped() {
+        let ir = make_test_ir();
+        let json = ir_to_json(&ir);
+
+        assert_eq!(json["terminal"]["background"], "#1E1E1E");
+        assert_eq!(json["terminal"]["foreground"], "#D4D4D4");
+        assert_eq!(json["terminal"]["red"], "#FF0000");
+        assert_eq!(json["terminal"]["brightRed"], "#FF0000");
+        assert_eq!(json["terminal"]["selectionBackground"], "#264F78");
+    }
 }

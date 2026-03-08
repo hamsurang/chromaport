@@ -58,7 +58,13 @@ impl ThemeReader {
         // Parallel scan using rayon
         let themes: Vec<ThemeEntry> = entries
             .par_iter()
-            .filter_map(|ext_dir| parse_extension_themes(ext_dir).ok())
+            .filter_map(|ext_dir| match parse_extension_themes(ext_dir) {
+                Ok(t) => Some(t),
+                Err(e) => {
+                    eprintln!("warning: skipping extension {}: {e}", ext_dir.display());
+                    None
+                }
+            })
             .flatten()
             .collect();
 
@@ -121,9 +127,11 @@ fn parse_extension_themes(ext_dir: &Path) -> Result<Vec<ThemeEntry>> {
     Ok(entries)
 }
 
-/// Read a theme JSON file, handling `include` inheritance (max depth 5).
+const MAX_INCLUDE_DEPTH: u8 = 5;
+
+/// Read a theme JSON file, handling `include` inheritance (max depth).
 fn read_theme_json_with_includes(path: &Path, depth: u8) -> Result<serde_json::Value> {
-    if depth > 5 {
+    if depth > MAX_INCLUDE_DEPTH {
         anyhow::bail!("theme include depth exceeded (circular reference?)");
     }
 
@@ -203,17 +211,25 @@ pub fn strip_jsonc(input: &str) -> String {
     let len = chars.len();
     let mut i = 0;
     let mut in_string = false;
-    let mut prev_char = '\0';
 
     while i < len {
         let ch = chars[i];
 
         if in_string {
             output.push(ch);
-            if ch == '"' && prev_char != '\\' {
-                in_string = false;
+            if ch == '"' {
+                // Count preceding backslashes to handle escaped quotes correctly.
+                // An even number of backslashes means the quote is NOT escaped.
+                let mut num_backslashes = 0;
+                let mut k = i;
+                while k > 0 && chars[k - 1] == '\\' {
+                    num_backslashes += 1;
+                    k -= 1;
+                }
+                if num_backslashes % 2 == 0 {
+                    in_string = false;
+                }
             }
-            prev_char = ch;
             i += 1;
             continue;
         }
@@ -241,7 +257,6 @@ pub fn strip_jsonc(input: &str) -> String {
         }
 
         output.push(ch);
-        prev_char = ch;
         i += 1;
     }
 
@@ -387,5 +402,24 @@ mod tests {
         let output = strip_jsonc(input);
         let v: serde_json::Value = serde_json::from_str(&output).unwrap();
         assert_eq!(v["key"], "val");
+    }
+
+    #[test]
+    fn test_strip_jsonc_escaped_backslash_before_quote() {
+        // The value ends with a backslash: "C:\\" — the \\ is an escaped backslash,
+        // so the closing quote is NOT escaped and should end the string.
+        let input = r#"{ "path": "C:\\" // comment
+}"#;
+        let output = strip_jsonc(input);
+        let v: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(v["path"], "C:\\");
+    }
+
+    #[test]
+    fn test_strip_jsonc_escaped_quote_in_string() {
+        let input = r#"{ "key": "say \"hello\"" }"#;
+        let output = strip_jsonc(input);
+        let v: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(v["key"], r#"say "hello""#);
     }
 }

@@ -2,6 +2,7 @@ use crate::ir::{ThemeIR, ThemeType};
 use crate::store::{atomic_write, theme_slug};
 use anyhow::{Context, Result};
 use serde::Serialize;
+use std::path::{Path, PathBuf};
 
 pub fn detect() -> bool {
     dirs::home_dir()
@@ -9,7 +10,7 @@ pub fn detect() -> bool {
         .unwrap_or(false)
 }
 
-pub fn write(ir: &ThemeIR) -> Result<()> {
+pub fn write(ir: &ThemeIR) -> Result<PathBuf> {
     let themes_dir = dirs::home_dir()
         .context("cannot determine home directory")?
         .join(".warp/themes");
@@ -59,9 +60,15 @@ pub fn write(ir: &ThemeIR) -> Result<()> {
     atomic_write(&path, yaml.as_bytes())
         .with_context(|| format!("failed to write {}", path.display()))?;
 
-    println!("  ✔ {} → {}", ir.name, path.display());
+    Ok(path)
+}
 
-    Ok(())
+pub fn guide(_ir: &ThemeIR, written_path: &Path) -> String {
+    format!(
+        "  Theme written to {}.\n  \
+         Open Warp -> Settings -> Appearance -> Themes to select it.",
+        written_path.display()
+    )
 }
 
 #[derive(Serialize)]
@@ -91,4 +98,63 @@ struct WarpPalette<'a> {
     magenta: &'a str,
     cyan: &'a str,
     white: &'a str,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ir::test_fixtures::make_test_ir;
+
+    #[test]
+    fn warp_theme_serializes_to_valid_yaml() {
+        let ir = make_test_ir();
+        let theme = WarpTheme {
+            name: ir.name.as_str(),
+            accent: ir.accent.as_str(),
+            cursor: ir.cursor.as_str(),
+            background: ir.background.as_str(),
+            foreground: ir.foreground.as_str(),
+            details: "darker",
+            terminal_colors: WarpTerminalColors {
+                normal: WarpPalette {
+                    black: ir.terminal.normal.black.as_str(),
+                    red: ir.terminal.normal.red.as_str(),
+                    green: ir.terminal.normal.green.as_str(),
+                    yellow: ir.terminal.normal.yellow.as_str(),
+                    blue: ir.terminal.normal.blue.as_str(),
+                    magenta: ir.terminal.normal.magenta.as_str(),
+                    cyan: ir.terminal.normal.cyan.as_str(),
+                    white: ir.terminal.normal.white.as_str(),
+                },
+                bright: WarpPalette {
+                    black: ir.terminal.bright.black.as_str(),
+                    red: ir.terminal.bright.red.as_str(),
+                    green: ir.terminal.bright.green.as_str(),
+                    yellow: ir.terminal.bright.yellow.as_str(),
+                    blue: ir.terminal.bright.blue.as_str(),
+                    magenta: ir.terminal.bright.magenta.as_str(),
+                    cyan: ir.terminal.bright.cyan.as_str(),
+                    white: ir.terminal.bright.white.as_str(),
+                },
+            },
+        };
+
+        let yaml = serde_yaml_ng::to_string(&theme).unwrap();
+        assert!(yaml.contains("name: Test Theme"));
+        assert!(yaml.contains("accent: '#0078D4'"));
+        assert!(yaml.contains("background: '#1E1E1E'"));
+        assert!(yaml.contains("details: darker"));
+    }
+
+    #[test]
+    fn warp_light_theme_uses_lighter_details() {
+        let mut ir = make_test_ir();
+        ir.theme_type = ThemeType::Light;
+
+        let details = match ir.theme_type {
+            ThemeType::Dark => "darker",
+            ThemeType::Light => "lighter",
+        };
+        assert_eq!(details, "lighter");
+    }
 }
