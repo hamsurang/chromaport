@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/chromaport_og.png" alt="Chromaport" width="600" />
+  <img src="assets/chromaport.png" alt="Chromaport" width="600" />
 </p>
 
 # chromaport
@@ -70,17 +70,17 @@ chromaport --editor vscode --target superset --yes
 
 ## Supported editors
 
-| Editor | Path |
-|--------|------|
+| Editor  | Path                    |
+| ------- | ----------------------- |
 | VS Code | `~/.vscode/extensions/` |
-| Cursor | `~/.cursor/extensions/` |
+| Cursor  | `~/.cursor/extensions/` |
 
 ## Supported targets
 
-| Target | How it works |
-|--------|-------------|
-| Superset | Writes to `~/.superset/app-state.json` (quit Superset first) |
-| Warp | Writes to `~/.warp/themes/*.yaml` (auto-detected while running) |
+| Target   | How it works                                                    |
+| -------- | --------------------------------------------------------------- |
+| Superset | Writes to `~/.superset/app-state.json` (quit Superset first)    |
+| Warp     | Writes to `~/.warp/themes/*.yaml` (auto-detected while running) |
 
 ## How it works
 

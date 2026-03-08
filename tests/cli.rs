@@ -12,7 +12,9 @@ fn help_flag_shows_usage() {
         .arg("--help")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Migrate VS Code / Cursor themes"));
+        .stdout(predicate::str::contains(
+            "Migrate VS Code / Cursor themes to Superset, Warp, Ghostty",
+        ));
 }
 
 #[test]
@@ -62,5 +64,36 @@ fn yes_mode_without_tty_runs() {
             || combined.contains("Editor:")
             || combined.contains("Converting"),
         "unexpected output: {combined}"
+    );
+}
+
+#[test]
+fn ghostty_target_accepted() {
+    // --target ghostty should be accepted as a valid target value
+    let assert = cmd().args(["--target", "ghostty", "--yes"]).assert();
+    let output = assert.get_output().clone();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let combined = format!("{stdout}{stderr}");
+
+    // Should not fail with "invalid value" for target
+    assert!(
+        !combined.contains("invalid value"),
+        "ghostty should be a valid target: {combined}"
+    );
+}
+
+#[test]
+fn activate_flag_accepted() {
+    // --activate should be accepted without error
+    let assert = cmd().args(["--activate", "--yes"]).assert();
+    let output = assert.get_output().clone();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let combined = format!("{stdout}{stderr}");
+
+    assert!(
+        !combined.contains("unexpected argument"),
+        "--activate should be accepted: {combined}"
     );
 }

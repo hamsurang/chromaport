@@ -149,6 +149,22 @@ pub struct AnsiPalette {
     pub white: HexColor,
 }
 
+impl AnsiPalette {
+    /// Returns palette colors indexed from `offset` (0 for normal, 8 for bright).
+    pub fn as_indexed(&self, offset: u8) -> [(u8, &HexColor); 8] {
+        [
+            (offset, &self.black),
+            (offset + 1, &self.red),
+            (offset + 2, &self.green),
+            (offset + 3, &self.yellow),
+            (offset + 4, &self.blue),
+            (offset + 5, &self.magenta),
+            (offset + 6, &self.cyan),
+            (offset + 7, &self.white),
+        ]
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct AnsiColors {
     pub normal: AnsiPalette,
@@ -180,4 +196,54 @@ pub struct ThemeIR {
     pub chart_colors: [HexColor; 5],
     // Terminal ANSI
     pub terminal: AnsiColors,
+}
+
+#[cfg(test)]
+pub(crate) mod test_fixtures {
+    use super::*;
+
+    pub fn make_test_ir() -> ThemeIR {
+        let hex = |s: &str| HexColor::parse(s).unwrap();
+        let palette = || AnsiPalette {
+            black: hex("#000000"),
+            red: hex("#FF0000"),
+            green: hex("#00FF00"),
+            yellow: hex("#FFFF00"),
+            blue: hex("#0000FF"),
+            magenta: hex("#FF00FF"),
+            cyan: hex("#00FFFF"),
+            white: hex("#FFFFFF"),
+        };
+        ThemeIR {
+            id: "test-theme".to_string(),
+            name: "Test Theme".to_string(),
+            theme_type: ThemeType::Dark,
+            background: hex("#1E1E1E"),
+            foreground: hex("#D4D4D4"),
+            accent: hex("#0078D4"),
+            cursor: hex("#D4D4D4"),
+            selection_bg: hex("#264F78"),
+            border: hex("#3E3E3E"),
+            sidebar_bg: hex("#252526"),
+            sidebar_fg: hex("#CCCCCC"),
+            input_bg: hex("#3C3C3C"),
+            muted_fg: hex("#858585"),
+            chart_colors: [
+                hex("#E06C75"),
+                hex("#98C379"),
+                hex("#61AFEF"),
+                hex("#C678DD"),
+                hex("#56B6C2"),
+            ],
+            terminal: AnsiColors {
+                normal: palette(),
+                bright: palette(),
+                background: hex("#1E1E1E"),
+                foreground: hex("#D4D4D4"),
+                cursor: hex("#D4D4D4"),
+                cursor_accent: None,
+                selection_bg: Some(hex("#264F78")),
+            },
+        }
+    }
 }

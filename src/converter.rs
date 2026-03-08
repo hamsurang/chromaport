@@ -82,7 +82,8 @@ fn get_color(
             }
         }
     }
-    HexColor::parse(fallback).unwrap_or_else(|_| HexColor::parse("#000000").unwrap())
+    HexColor::parse(fallback)
+        .unwrap_or_else(|_| HexColor::parse("#000000").expect("valid hex literal"))
 }
 
 /// Chart color scopes to search for (in priority order)
@@ -132,16 +133,12 @@ fn extract_chart_colors(
                 }
             }
         }
-        result.push(HexColor::parse(fallback).unwrap());
+        result.push(HexColor::parse(fallback).expect("CHART_SCOPES fallbacks are valid hex"));
     }
 
-    [
-        result.remove(0),
-        result.remove(0),
-        result.remove(0),
-        result.remove(0),
-        result.remove(0),
-    ]
+    result
+        .try_into()
+        .expect("CHART_SCOPES has exactly 5 entries")
 }
 
 /// Convert a VS Code theme (ThemeEntry + parsed JSON) into the intermediate representation.
@@ -208,15 +205,23 @@ pub fn convert(entry: &ThemeEntry, theme_json: &Value) -> Result<ThemeIR> {
         .or_else(|| colors.get("editor.selectionBackground"))
         .and_then(|v| HexColor::parse(v).ok());
 
-    let ansi = |normal_key: &str, bright_key: &str, dk: &str, lk: &str| {
+    let ansi = |normal_key: &str, bright_key: &str, normal_default: &str, bright_default: &str| {
         let fallback = if matches!(theme_type, ThemeType::Dark) {
-            dk
+            normal_default
         } else {
-            lk
+            bright_default
         };
         (
-            get_color(colors, &[normal_key], d.get(dk).unwrap_or(&fallback)),
-            get_color(colors, &[bright_key], d.get(lk).unwrap_or(&fallback)),
+            get_color(
+                colors,
+                &[normal_key],
+                d.get(normal_default).unwrap_or(&fallback),
+            ),
+            get_color(
+                colors,
+                &[bright_key],
+                d.get(bright_default).unwrap_or(&fallback),
+            ),
         )
     };
 

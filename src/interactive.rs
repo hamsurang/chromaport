@@ -5,6 +5,8 @@ use anyhow::Result;
 use inquire::{InquireError, MultiSelect, Select};
 use std::io::IsTerminal;
 
+const THEME_LIST_PAGE_SIZE: usize = 12;
+
 pub fn is_tty() -> bool {
     std::io::stdin().is_terminal()
 }
@@ -23,7 +25,10 @@ pub fn select_editor(available: &[(Editor, String)]) -> Result<usize> {
         .prompt()
         .map_err(handle_inquire_error)?;
 
-    Ok(options.iter().position(|o| o == &selected).unwrap_or(0))
+    options
+        .iter()
+        .position(|o| o == &selected)
+        .ok_or_else(|| anyhow::anyhow!("selected item not found in options"))
 }
 
 /// Let user select one or more themes to migrate.
@@ -56,7 +61,7 @@ pub fn select_themes(themes: &[ThemeEntry], active_id: Option<&str>) -> Result<V
         .collect();
 
     let selected = MultiSelect::new("Select themes to migrate:", options.clone())
-        .with_page_size(12)
+        .with_page_size(THEME_LIST_PAGE_SIZE)
         .prompt()
         .map_err(handle_inquire_error)?;
 
@@ -83,19 +88,22 @@ pub fn select_target(available: &[Target]) -> Result<Target> {
 
     if available.len() == 1 {
         let t = available[0].clone();
-        println!("Target: {} (auto-detected)", target_name(&t));
+        println!("Target: {} (auto-detected)", t.display_name());
         return Ok(t);
     }
 
     let options: Vec<String> = available
         .iter()
-        .map(|t| target_name(t).to_string())
+        .map(|t| t.display_name().to_string())
         .collect();
     let selected = Select::new("Select target app:", options.clone())
         .prompt()
         .map_err(handle_inquire_error)?;
 
-    let idx = options.iter().position(|o| o == &selected).unwrap_or(0);
+    let idx = options
+        .iter()
+        .position(|o| o == &selected)
+        .ok_or_else(|| anyhow::anyhow!("selected item not found in options"))?;
     Ok(available[idx].clone())
 }
 
@@ -116,16 +124,20 @@ pub fn select_active(irs: &[ThemeIR]) -> Result<Option<String>> {
     if selected == keep {
         Ok(None)
     } else {
-        let idx = options.iter().position(|o| o == &selected).unwrap_or(0);
+        let idx = options
+            .iter()
+            .position(|o| o == &selected)
+            .ok_or_else(|| anyhow::anyhow!("selected item not found in options"))?;
         Ok(irs.get(idx).map(|ir| ir.id.clone()))
     }
 }
 
-fn target_name(t: &Target) -> &'static str {
-    match t {
-        Target::Superset => "Superset",
-        Target::Warp => "Warp",
-    }
+pub fn confirm_activate() -> Result<bool> {
+    let answer = inquire::Confirm::new("Apply this change?")
+        .with_default(false)
+        .prompt()
+        .map_err(handle_inquire_error)?;
+    Ok(answer)
 }
 
 fn handle_inquire_error(e: InquireError) -> anyhow::Error {

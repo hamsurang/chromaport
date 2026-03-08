@@ -70,6 +70,8 @@ pub fn resolve_theme_path(extension_dir: &Path, raw_path: &str) -> Result<std::p
     }
 }
 
+const MAX_SLUG_LENGTH: usize = 64;
+
 /// Generate a safe filesystem slug from a theme name.
 pub fn theme_slug(name: &str) -> String {
     let slug: String = name
@@ -102,7 +104,7 @@ pub fn theme_slug(name: &str) -> String {
     if result.is_empty() {
         "unnamed-theme".to_string()
     } else {
-        result[..result.len().min(64)].to_string()
+        result[..result.len().min(MAX_SLUG_LENGTH)].to_string()
     }
 }
 
@@ -139,6 +141,25 @@ mod tests {
     #[test]
     fn test_theme_slug_preserves_underscores() {
         assert_eq!(theme_slug("my_theme"), "my_theme");
+    }
+
+    #[test]
+    fn test_theme_slug_unicode_characters() {
+        // Unicode alphanumeric characters are preserved by is_alphanumeric()
+        assert_eq!(theme_slug("テーマ Dark"), "テーマ-dark");
+        assert_eq!(theme_slug("한글 테마"), "한글-테마");
+    }
+
+    #[test]
+    fn test_theme_slug_emoji_stripped() {
+        assert_eq!(theme_slug("🌙 Night Owl"), "night-owl");
+    }
+
+    #[test]
+    fn test_theme_slug_mixed_separators() {
+        assert_eq!(theme_slug("my--theme---name"), "my-theme-name");
+        assert_eq!(theme_slug("---leading"), "leading");
+        assert_eq!(theme_slug("trailing---"), "trailing");
     }
 
     #[test]

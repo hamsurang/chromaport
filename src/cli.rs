@@ -3,7 +3,7 @@ use clap::{Parser, ValueEnum};
 #[derive(Parser)]
 #[command(
     version,
-    about = "Migrate VS Code / Cursor themes to Superset, Warp, and more",
+    about = "Migrate VS Code / Cursor themes to Superset, Warp, Ghostty, and more",
     long_about = None
 )]
 pub struct Cli {
@@ -20,8 +20,12 @@ pub struct Cli {
     #[arg(short = 'y', long)]
     pub yes: bool,
 
-    /// Do not change the active theme after import
+    /// Apply the theme to the target app's config
     #[arg(long)]
+    pub activate: bool,
+
+    /// Deprecated: themes are no longer activated by default. Use --activate instead.
+    #[arg(long, hide = true)]
     pub no_activate: bool,
 }
 
@@ -35,4 +39,5 @@ pub enum Editor {
 pub enum Target {
     Superset,
     Warp,
+    Ghostty,
 }

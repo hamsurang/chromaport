@@ -12,7 +12,6 @@ use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Editor, Target};
 use reader::{detect_editors, ThemeReader};
-use target::{superset, warp};
 
 fn main() {
     if let Err(e) = run() {
@@ -23,6 +22,14 @@ fn main() {
 
 fn run() -> Result<()> {
     let cli = Cli::parse();
+
+    // Handle deprecated --no-activate
+    if cli.no_activate {
+        eprintln!(
+            "Warning: --no-activate is deprecated. Themes are no longer activated by default.\n\
+             Use --activate to explicitly activate a theme. --no-activate will be removed in v0.3.0."
+        );
+    }
 
     // ── 1. Resolve editor ─────────────────────────────────────────────────
     let all_editors = detect_editors();
@@ -99,20 +106,14 @@ fn run() -> Result<()> {
     };
 
     // ── 3. Resolve target ─────────────────────────────────────────────────
-    let mut available_targets: Vec<Target> = vec![];
-    if superset::detect() {
-        available_targets.push(Target::Superset);
-    }
-    if warp::detect() {
-        available_targets.push(Target::Warp);
-    }
+    let available_targets: Vec<Target> = Target::all().into_iter().filter(|t| t.detect()).collect();
 
     let selected_target = if let Some(ref t) = cli.target {
         t.clone()
     } else if available_targets.is_empty() {
         anyhow::bail!(
             "No supported target apps detected.\n\
-             Install Superset (~/.superset) or Warp (~/.warp) first."
+             Install Superset (~/.superset), Warp (~/.warp), or Ghostty (~/.config/ghostty) first."
         );
     } else if available_targets.len() == 1 || !interactive::is_tty() {
         available_targets[0].clone()
@@ -130,35 +131,42 @@ fn run() -> Result<()> {
         irs.push(ir);
     }
 
-    // ── 5. Select active theme ────────────────────────────────────────────
-    let activate_id: Option<String> = if cli.no_activate {
-        None
-    } else if cli.yes {
-        irs.first().map(|ir| ir.id.clone())
-    } else if interactive::is_tty() {
-        interactive::select_active(&irs)?
-    } else {
-        None
-    };
-
-    // ── 6. Write ──────────────────────────────────────────────────────────
+    // ── 5. Write ──────────────────────────────────────────────────────────
     println!();
+    let mut written: Vec<(usize, std::path::PathBuf)> = vec![];
     let mut errors: Vec<(String, anyhow::Error)> = vec![];
 
-    for ir in &irs {
-        let set_active = activate_id.as_deref() == Some(ir.id.as_str());
-        let result = match selected_target {
-            Target::Superset => superset::write(
-                ir,
-                superset::WriteOptions {
-                    set_active,
-                    overwrite: cli.yes,
-                },
-            ),
-            Target::Warp => warp::write(ir),
+    for (i, ir) in irs.iter().enumerate() {
+        match selected_target.write(ir) {
+            Ok(path) => {
+                println!("  \u{2714} {} \u{2192} {}", ir.name, path.display());
+                written.push((i, path));
+            }
+            Err(e) => {
+                errors.push((ir.name.clone(), e));
+            }
+        }
+    }
+
+    // ── 6. Activate or Guide ──────────────────────────────────────────────
+    if cli.activate && !written.is_empty() {
+        let activate_ir = if irs.len() == 1 || cli.yes || !interactive::is_tty() {
+            Some(&irs[written[0].0])
+        } else {
+            match interactive::select_active(&irs)? {
+                Some(id) => irs.iter().find(|ir| ir.id == id),
+                None => None,
+            }
         };
-        if let Err(e) = result {
-            errors.push((ir.name.clone(), e));
+
+        if let Some(ir) = activate_ir {
+            target::run_activate(&selected_target, ir, cli.yes)?;
+        }
+    } else if !written.is_empty() {
+        let (ir_idx, path) = &written[0];
+        let guide = selected_target.guide(&irs[*ir_idx], path);
+        if !guide.is_empty() {
+            println!("\n{}", guide);
         }
     }
 
@@ -166,7 +174,7 @@ fn run() -> Result<()> {
     if !errors.is_empty() {
         eprintln!("\nFailed to write {} theme(s):", errors.len());
         for (name, err) in &errors {
-            eprintln!("  ✗ {name}: {err:#}");
+            eprintln!("  \u{2717} {name}: {err:#}");
         }
         if errors.len() == irs.len() {
             std::process::exit(1);
