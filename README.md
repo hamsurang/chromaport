@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/chromaport_og.png" alt="Chromaport" width="600" />
+</p>
+
 # chromaport
 
 Your favorite editor theme, everywhere.
