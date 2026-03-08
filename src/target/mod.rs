@@ -108,6 +108,9 @@ pub fn run_activate(target: &Target, ir: &ThemeIR, auto_confirm: bool) -> Result
             store::atomic_write(&config_path, new_content.as_bytes())?;
             eprintln!("  Backup: {}", backup_path.display());
             eprintln!("  Config updated.");
+            if matches!(target, Target::Ghostty) {
+                eprintln!("  Reload Ghostty config to apply (Cmd+Shift+, on macOS).");
+            }
         }
     }
     Ok(())

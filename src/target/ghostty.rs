@@ -22,17 +22,29 @@ pub fn ghostty_config_dir() -> Option<PathBuf> {
     Some(xdg_config.join("ghostty"))
 }
 
+/// Ghostty resolves custom themes only from the XDG config directory,
+/// not from ~/Library/Application Support/ on macOS.
+/// See: ghostty-org/ghostty src/config/theme.zig
+fn ghostty_xdg_dir() -> Option<PathBuf> {
+    let xdg_config = std::env::var("XDG_CONFIG_HOME")
+        .ok()
+        .filter(|s| !s.is_empty() && Path::new(s).is_absolute())
+        .map(PathBuf::from)
+        .or_else(|| dirs::home_dir().map(|h| h.join(".config")))?;
+    Some(xdg_config.join("ghostty"))
+}
+
 pub fn detect() -> bool {
     ghostty_config_dir().map(|d| d.exists()).unwrap_or(false)
 }
 
 pub fn write(ir: &ThemeIR) -> Result<PathBuf> {
-    let config_dir = ghostty_config_dir().context("cannot determine Ghostty config directory")?;
-    write_to_dir(ir, &config_dir)
+    let base_dir = ghostty_xdg_dir().context("cannot determine Ghostty themes directory")?;
+    write_to_dir(ir, &base_dir)
 }
 
-fn write_to_dir(ir: &ThemeIR, config_dir: &Path) -> Result<PathBuf> {
-    let themes_dir = config_dir.join("themes");
+fn write_to_dir(ir: &ThemeIR, base_dir: &Path) -> Result<PathBuf> {
+    let themes_dir = base_dir.join("themes");
     std::fs::create_dir_all(&themes_dir)
         .with_context(|| format!("cannot create {}", themes_dir.display()))?;
 
@@ -94,8 +106,11 @@ pub fn guide(_ir: &ThemeIR, written_path: &Path) -> String {
 fn format_ghostty_theme(ir: &ThemeIR) -> String {
     let mut lines = Vec::new();
 
+    // Ghostty only accepts #RRGGBB; strip alpha from #RRGGBBAA values.
     let push_color = |lines: &mut Vec<String>, key: &str, color: &crate::ir::HexColor| {
-        lines.push(format!("{} = {}", key, color.as_str()));
+        let s = color.as_str();
+        let rgb = if s.len() == 9 { &s[..7] } else { s };
+        lines.push(format!("{} = {}", key, rgb));
     };
 
     push_color(&mut lines, "background", &ir.terminal.background);
@@ -114,10 +129,14 @@ fn format_ghostty_theme(ir: &ThemeIR) -> String {
 
     // palette 0-7 (normal), 8-15 (bright)
     for (idx, color) in ir.terminal.normal.as_indexed(0) {
-        lines.push(format!("palette = {}={}", idx, color.as_str()));
+        let s = color.as_str();
+        let rgb = if s.len() == 9 { &s[..7] } else { s };
+        lines.push(format!("palette = {}={}", idx, rgb));
     }
     for (idx, color) in ir.terminal.bright.as_indexed(8) {
-        lines.push(format!("palette = {}={}", idx, color.as_str()));
+        let s = color.as_str();
+        let rgb = if s.len() == 9 { &s[..7] } else { s };
+        lines.push(format!("palette = {}={}", idx, rgb));
     }
 
     lines.join("\n") + "\n"
