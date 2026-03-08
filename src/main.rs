@@ -7,10 +7,11 @@ mod ir;
 mod reader;
 mod store;
 mod target;
+mod update;
 
 use anyhow::Result;
 use clap::Parser;
-use cli::{Cli, Editor, Target};
+use cli::{Cli, Command, Editor, Target};
 use reader::{detect_editors, ThemeReader};
 
 fn main() {
@@ -22,6 +23,11 @@ fn main() {
 
 fn run() -> Result<()> {
     let cli = Cli::parse();
+
+    // Handle subcommands
+    if let Some(Command::Update) = cli.command {
+        return update::run_update();
+    }
 
     // Handle deprecated --no-activate
     if cli.no_activate {
@@ -179,6 +185,11 @@ fn run() -> Result<()> {
         if errors.len() == irs.len() {
             std::process::exit(1);
         }
+    }
+
+    // ── 8. Update notice ────────────────────────────────────────────────
+    if let Some(info) = update::check_for_update() {
+        update::print_update_notice(&info);
     }
 
     Ok(())
