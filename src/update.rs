@@ -261,7 +261,7 @@ fn detect_install_method() -> InstallMethod {
     }
 }
 
-pub fn run_update() -> Result<()> {
+pub fn run_update(yes: bool) -> Result<()> {
     println!("Checking for updates...");
 
     let latest_str = fetch_latest_version()?;
@@ -283,7 +283,48 @@ pub fn run_update() -> Result<()> {
 
     match detect_install_method() {
         InstallMethod::Homebrew => {
-            println!("Updating chromaport {current} \u{2192} {latest_str} via Homebrew...");
+            println!("A new version is available: {current} \u{2192} {latest_str}");
+
+            // CWD 존재 여부 체크
+            if std::env::current_dir().is_err() {
+                anyhow::bail!(
+                    "Current directory does not exist.\n\
+                     Please move to a valid directory and try again:\n  \
+                     cd ~ && chromaport update"
+                );
+            }
+
+            // 확인 프롬프트
+            if !yes {
+                if !crate::interactive::is_tty() {
+                    println!("\nRun the following command to upgrade:");
+                    println!("  brew update && brew upgrade chromaport");
+                    return Ok(());
+                }
+                if !crate::interactive::confirm_update(current, &latest_str, "Homebrew")? {
+                    return Ok(());
+                }
+            }
+
+            // brew update (best-effort)
+            let brew_update = std::process::Command::new("brew")
+                .arg("update")
+                .stdout(std::process::Stdio::null())
+                .stderr(std::process::Stdio::piped())
+                .status();
+
+            match brew_update {
+                Ok(status) if !status.success() => {
+                    eprintln!("Warning: `brew update` failed. Proceeding with upgrade...");
+                }
+                Err(e) => {
+                    eprintln!("Warning: `brew update` failed ({e}). Proceeding with upgrade...");
+                }
+                _ => {}
+            }
+
+            // brew upgrade
+            println!("Upgrading chromaport via Homebrew...");
             let status = std::process::Command::new("brew")
                 .args(["upgrade", "chromaport"])
                 .status()
@@ -298,7 +339,21 @@ pub fn run_update() -> Result<()> {
             }
         }
         InstallMethod::Cargo => {
-            println!("Updating chromaport {current} \u{2192} {latest_str} via Cargo...");
+            println!("A new version is available: {current} \u{2192} {latest_str}");
+
+            // 확인 프롬프트
+            if !yes {
+                if !crate::interactive::is_tty() {
+                    println!("\nRun the following command to upgrade:");
+                    println!("  cargo install chromaport");
+                    return Ok(());
+                }
+                if !crate::interactive::confirm_update(current, &latest_str, "Cargo")? {
+                    return Ok(());
+                }
+            }
+
+            println!("Upgrading chromaport via Cargo...");
             let status = std::process::Command::new("cargo")
                 .args(["install", "chromaport"])
                 .status()
@@ -315,7 +370,7 @@ pub fn run_update() -> Result<()> {
         InstallMethod::Unknown => {
             println!("A new release is available: {current} \u{2192} {latest_str}\n");
             println!("Could not detect install method. Update manually:");
-            println!("  brew upgrade chromaport");
+            println!("  brew update && brew upgrade chromaport");
             println!("  # or");
             println!("  cargo install chromaport");
             println!("\nhttps://github.com/hamsurang/chromaport/releases/tag/v{latest_str}");
