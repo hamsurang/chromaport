@@ -47,6 +47,26 @@ impl HexColor {
     pub fn as_str(&self) -> &str {
         &self.0
     }
+
+    /// Convert to RGB components. For #RRGGBBAA, the alpha channel is ignored.
+    pub fn to_rgb(&self) -> (u8, u8, u8) {
+        let hex = &self.0[1..]; // skip '#'
+        match hex.len() {
+            3 => {
+                let r = u8::from_str_radix(&hex[0..1], 16).unwrap();
+                let g = u8::from_str_radix(&hex[1..2], 16).unwrap();
+                let b = u8::from_str_radix(&hex[2..3], 16).unwrap();
+                (r * 17, g * 17, b * 17)
+            }
+            6 | 8 => {
+                let r = u8::from_str_radix(&hex[0..2], 16).unwrap();
+                let g = u8::from_str_radix(&hex[2..4], 16).unwrap();
+                let b = u8::from_str_radix(&hex[4..6], 16).unwrap();
+                (r, g, b)
+            }
+            _ => unreachable!("HexColor validated to #RGB, #RRGGBB, or #RRGGBBAA"),
+        }
+    }
 }
 
 impl TryFrom<String> for HexColor {
@@ -119,6 +139,24 @@ mod tests {
         assert_eq!(json, "\"#1E1E1E\"");
         let c2: HexColor = serde_json::from_str(&json).unwrap();
         assert_eq!(c, c2);
+    }
+
+    #[test]
+    fn hex_color_to_rgb_6_digit() {
+        let c = HexColor::parse("#FF8040").unwrap();
+        assert_eq!(c.to_rgb(), (255, 128, 64));
+    }
+
+    #[test]
+    fn hex_color_to_rgb_3_digit() {
+        let c = HexColor::parse("#F80").unwrap();
+        assert_eq!(c.to_rgb(), (255, 136, 0));
+    }
+
+    #[test]
+    fn hex_color_to_rgb_8_digit_ignores_alpha() {
+        let c = HexColor::parse("#FF804080").unwrap();
+        assert_eq!(c.to_rgb(), (255, 128, 64));
     }
 
     #[test]

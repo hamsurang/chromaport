@@ -4,6 +4,7 @@ mod cli;
 mod converter;
 mod interactive;
 mod ir;
+mod preview;
 mod reader;
 mod store;
 mod target;
@@ -97,21 +98,7 @@ fn run() -> Result<()> {
         anyhow::bail!("No themes found. Install theme extensions in your editor.");
     }
 
-    let selected_entries = if cli.yes {
-        let active = active_id
-            .as_deref()
-            .and_then(|id| all_themes.iter().find(|t| t.settings_id == id))
-            .or_else(|| all_themes.first())
-            .cloned()
-            .ok_or_else(|| anyhow::anyhow!("No theme to select"))?;
-        vec![active]
-    } else if !interactive::is_tty() {
-        anyhow::bail!("Not a TTY. Use --yes for non-interactive mode.");
-    } else {
-        interactive::select_themes(&all_themes, active_id.as_deref())?
-    };
-
-    // ── 3. Resolve target ─────────────────────────────────────────────────
+    // ── 3. Resolve target (before theme selection for target-aware preview)
     let available_targets: Vec<Target> = Target::all().into_iter().filter(|t| t.detect()).collect();
 
     let selected_target = if let Some(ref t) = cli.target {
@@ -127,62 +114,51 @@ fn run() -> Result<()> {
         interactive::select_target(&available_targets)?
     };
 
-    // ── 4. Convert ────────────────────────────────────────────────────────
-    println!("\nConverting {} theme(s)...", selected_entries.len());
+    // ── 4. Select theme (single-select with live preview) ─────────────────
+    let selected_entry = if cli.yes {
+        active_id
+            .as_deref()
+            .and_then(|id| all_themes.iter().find(|t| t.settings_id == id))
+            .or_else(|| all_themes.first())
+            .cloned()
+            .ok_or_else(|| anyhow::anyhow!("No theme to select"))?
+    } else if !interactive::is_tty() {
+        anyhow::bail!("Not a TTY. Use --yes for non-interactive mode.");
+    } else {
+        match preview::select_theme_with_preview(
+            &all_themes,
+            active_id.as_deref(),
+            &reader,
+            &selected_target,
+        )? {
+            Some(entry) => entry,
+            None => std::process::exit(0),
+        }
+    };
 
-    let mut irs = vec![];
-    for entry in &selected_entries {
-        let theme_json = reader.read_theme_json(entry)?;
-        let ir = converter::convert(entry, &theme_json)?;
-        irs.push(ir);
-    }
+    // ── 5. Convert ────────────────────────────────────────────────────────
+    println!("\nConverting theme...");
+    let theme_json = reader.read_theme_json(&selected_entry)?;
+    let ir = converter::convert(&selected_entry, &theme_json)?;
 
-    // ── 5. Write ──────────────────────────────────────────────────────────
+    // ── 6. Write ──────────────────────────────────────────────────────────
     println!();
-    let mut written: Vec<(usize, std::path::PathBuf)> = vec![];
-    let mut errors: Vec<(String, anyhow::Error)> = vec![];
+    match selected_target.write(&ir) {
+        Ok(path) => {
+            println!("  \u{2714} {} \u{2192} {}", ir.name, path.display());
 
-    for (i, ir) in irs.iter().enumerate() {
-        match selected_target.write(ir) {
-            Ok(path) => {
-                println!("  \u{2714} {} \u{2192} {}", ir.name, path.display());
-                written.push((i, path));
+            // ── 7. Activate or Guide ──────────────────────────────────────
+            if cli.activate {
+                target::run_activate(&selected_target, &ir, cli.yes)?;
+            } else {
+                let guide = selected_target.guide(&ir, &path);
+                if !guide.is_empty() {
+                    println!("\n{}", guide);
+                }
             }
-            Err(e) => {
-                errors.push((ir.name.clone(), e));
-            }
         }
-    }
-
-    // ── 6. Activate or Guide ──────────────────────────────────────────────
-    if cli.activate && !written.is_empty() {
-        let activate_ir = if irs.len() == 1 || cli.yes || !interactive::is_tty() {
-            Some(&irs[written[0].0])
-        } else {
-            match interactive::select_active(&irs)? {
-                Some(id) => irs.iter().find(|ir| ir.id == id),
-                None => None,
-            }
-        };
-
-        if let Some(ir) = activate_ir {
-            target::run_activate(&selected_target, ir, cli.yes)?;
-        }
-    } else if !written.is_empty() {
-        let (ir_idx, path) = &written[0];
-        let guide = selected_target.guide(&irs[*ir_idx], path);
-        if !guide.is_empty() {
-            println!("\n{}", guide);
-        }
-    }
-
-    // ── 7. Report ─────────────────────────────────────────────────────────
-    if !errors.is_empty() {
-        eprintln!("\nFailed to write {} theme(s):", errors.len());
-        for (name, err) in &errors {
-            eprintln!("  \u{2717} {name}: {err:#}");
-        }
-        if errors.len() == irs.len() {
+        Err(e) => {
+            eprintln!("  \u{2717} {}: {e:#}", ir.name);
             std::process::exit(1);
         }
     }

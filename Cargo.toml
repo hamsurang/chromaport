@@ -1,6 +1,6 @@
 [package]
 name = "chromaport"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2021"
 description = "Migrate VS Code / Cursor themes to Superset, Warp, and more"
 license = "MIT"
@@ -16,6 +16,9 @@ path = "src/main.rs"
 anyhow = "1"
 clap = { version = "4", features = ["derive"] }
 dirs = "5"
+# NOTE: inquire 0.7 depends on crossterm 0.25, while ratatui uses crossterm 0.28.
+# These two versions coexist safely because inquire prompts complete before the
+# ratatui TUI starts, and TerminalGuard defensively resets terminal state.
 inquire = "0.7"
 libc = "0.2"
 rayon = "1"
@@ -24,8 +27,10 @@ serde_yaml_ng = "0.10"
 serde_json = "1"
 similar = { version = "2", features = ["inline"] }
 console = "0.15"
+crossterm = "0.28"
 tempfile = "3"
 ureq = { version = "3", features = ["json"] }
+ratatui = "0.29"
 semver = "1"
 
 [dev-dependencies]
