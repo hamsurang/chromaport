@@ -73,7 +73,7 @@ impl ThemeReader {
 
     /// Read and return the raw VS Code theme JSON for a given ThemeEntry.
     pub fn read_theme_json(&self, entry: &ThemeEntry) -> Result<serde_json::Value> {
-        read_theme_json_with_includes(&entry.path, 0)
+        read_theme_json_with_includes(&entry.path, &self.extensions_dir, 0)
     }
 }
 
@@ -130,7 +130,12 @@ fn parse_extension_themes(ext_dir: &Path) -> Result<Vec<ThemeEntry>> {
 const MAX_INCLUDE_DEPTH: u8 = 5;
 
 /// Read a theme JSON file, handling `include` inheritance (max depth).
-fn read_theme_json_with_includes(path: &Path, depth: u8) -> Result<serde_json::Value> {
+/// `ext_root` is the top-level extensions directory used to validate include paths.
+fn read_theme_json_with_includes(
+    path: &Path,
+    ext_root: &Path,
+    depth: u8,
+) -> Result<serde_json::Value> {
     if depth > MAX_INCLUDE_DEPTH {
         anyhow::bail!("theme include depth exceeded (circular reference?)");
     }
@@ -153,12 +158,20 @@ fn read_theme_json_with_includes(path: &Path, depth: u8) -> Result<serde_json::V
     let mut theme: serde_json::Value = serde_json::from_str(&stripped)
         .with_context(|| format!("invalid JSON in {}", path.display()))?;
 
-    // Handle `include` inheritance
+    // Handle `include` inheritance (validate path stays within extensions directory)
     if let Some(include_path) = theme["include"].as_str() {
         if let Some(parent) = path.parent() {
             let include_abs = parent.join(include_path);
-            if let Ok(base) = read_theme_json_with_includes(&include_abs, depth + 1) {
-                theme = merge_themes(base, theme);
+            if let Ok(canonical) = include_abs.canonicalize() {
+                if let Ok(ext_canonical) = ext_root.canonicalize() {
+                    if canonical.starts_with(&ext_canonical) {
+                        if let Ok(base) =
+                            read_theme_json_with_includes(&canonical, ext_root, depth + 1)
+                        {
+                            theme = merge_themes(base, theme);
+                        }
+                    }
+                }
             }
         }
     }
