@@ -123,9 +123,7 @@ pub fn select_theme_with_preview(
                 }
 
                 // Ctrl+C → return None (exit code 130 handled by caller)
-                if key.modifiers.contains(KeyModifiers::CONTROL)
-                    && key.code == KeyCode::Char('c')
-                {
+                if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
                     return Ok(None);
                 }
 
