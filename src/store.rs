@@ -109,9 +109,9 @@ pub fn theme_slug(name: &str) -> String {
     }
 }
 
-/// ~/.chromaport/themes/{target}/ 경로 반환
+/// ~/chromaport/themes/{target}/ 경로 반환
 pub fn chromaport_themes_dir(target: &str) -> Option<PathBuf> {
-    dirs::home_dir().map(|h| h.join(".chromaport").join("themes").join(target))
+    dirs::home_dir().map(|h| h.join("chromaport").join("themes").join(target))
 }
 
 /// 일반 파일(symlink 아님) 존재 여부
