@@ -16,8 +16,9 @@ pub fn ghostty_config_dir() -> Option<PathBuf> {
     }
     // XDG fallback (Linux primary, macOS secondary)
     let xdg_config = std::env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
         .ok()
+        .filter(|s| !s.is_empty() && Path::new(s).is_absolute())
+        .map(PathBuf::from)
         .or_else(|| dirs::home_dir().map(|h| h.join(".config")))?;
     Some(xdg_config.join("ghostty"))
 }
@@ -71,27 +72,26 @@ pub fn existing_theme_path(ir: &ThemeIR) -> Option<PathBuf> {
     path.exists().then_some(path)
 }
 
+/// Symlink 대상 경로
+pub fn link_path(ir: &ThemeIR) -> Option<PathBuf> {
+    let xdg_dir = ghostty_xdg_dir()?;
+    let filename = theme_filename(&ir.name);
+    Some(xdg_dir.join("themes").join(filename))
+}
+
 pub fn link(ir: &ThemeIR, written_path: &Path) -> LinkResult {
-    let xdg_dir = match ghostty_xdg_dir() {
-        Some(d) => d,
+    let target_path = match link_path(ir) {
+        Some(p) => p,
         None => return LinkResult::Failed("cannot determine Ghostty XDG directory".to_string()),
     };
 
-    let filename = theme_filename(&ir.name);
-    let link_path = xdg_dir.join("themes").join(&filename);
-
-    #[cfg(unix)]
-    {
-        match crate::store::create_symlink(written_path, &link_path, false) {
-            Ok(()) => LinkResult::Linked(link_path),
-            Err(e) => LinkResult::Failed(e.to_string()),
-        }
+    if crate::store::is_regular_file(&target_path) {
+        return LinkResult::Conflict(target_path);
     }
 
-    #[cfg(not(unix))]
-    {
-        let _ = link_path;
-        LinkResult::Failed("symlinks are not supported on this platform".to_string())
+    match crate::store::create_symlink(written_path, &target_path, false) {
+        Ok(()) => LinkResult::Linked(target_path),
+        Err(e) => LinkResult::Failed(e.to_string()),
     }
 }
 

@@ -12,7 +12,9 @@ pub enum LinkResult {
     Linked(PathBuf),
     /// 이 타겟은 symlink 불필요 (Superset)
     NotApplicable,
-    /// Symlink 실패했지만 중앙 저장소 파일은 사용 가능
+    /// 일반 파일이 존재하여 symlink 생성 불가 (사용자 확인 필요)
+    Conflict(PathBuf),
+    /// 복구 불가능한 실패 (권한, 플랫폼 등)
     Failed(String),
 }
 

@@ -125,8 +125,6 @@ pub fn is_regular_file(path: &Path) -> bool {
 /// 일반 파일이 있고 force=false면 Err 반환 (호출자가 프롬프트 후 force로 재호출).
 #[cfg(unix)]
 pub fn create_symlink(source: &Path, link_path: &Path, force: bool) -> anyhow::Result<()> {
-    use std::os::unix::fs::symlink;
-
     // 부모 디렉토리 보장
     if let Some(parent) = link_path.parent() {
         fs::create_dir_all(parent)?;
@@ -140,18 +138,24 @@ pub fn create_symlink(source: &Path, link_path: &Path, force: bool) -> anyhow::R
         Ok(_meta) => {
             // 일반 파일 존재
             if force {
-                fs::remove_file(link_path)?;
-                symlink(source, link_path)?;
+                // atomic: temp symlink + rename (replaces any existing entry)
+                atomic_symlink(source, link_path)?;
             } else {
                 anyhow::bail!("regular file exists at {}", link_path.display());
             }
         }
         Err(_) => {
             // 아무것도 없음 → 새로 생성
-            symlink(source, link_path)?;
+            std::os::unix::fs::symlink(source, link_path)?;
         }
     }
     Ok(())
+}
+
+/// Stub for non-Unix platforms.
+#[cfg(not(unix))]
+pub fn create_symlink(_source: &Path, _link_path: &Path, _force: bool) -> anyhow::Result<()> {
+    anyhow::bail!("symlinks are not supported on this platform")
 }
 
 /// Atomic symlink replacement (temp + rename)

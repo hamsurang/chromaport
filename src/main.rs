@@ -144,8 +144,7 @@ fn run() -> Result<()> {
             path
         }
         Err(e) => {
-            eprintln!("  \u{2717} {}: {e:#}", ir.name);
-            std::process::exit(1);
+            anyhow::bail!("failed to write {}: {e:#}", ir.name);
         }
     };
 
@@ -155,18 +154,25 @@ fn run() -> Result<()> {
         LinkResult::Linked(p) => {
             eprintln!("  Linked \u{2192} {}", p.display());
         }
+        LinkResult::Conflict(path) => match interactive::confirm_replace_with_symlink(path) {
+            Ok(true) => match store::create_symlink(&written_path, path, true) {
+                Ok(()) => eprintln!("  Linked \u{2192} {}", path.display()),
+                Err(e) => eprintln!("  {}: {}", console::style("Warning").yellow(), e),
+            },
+            Ok(false) => eprintln!("  Skipped symlink."),
+            Err(e) => eprintln!("  {}: {}", console::style("Warning").yellow(), e),
+        },
         LinkResult::Failed(reason) => {
-            // 일반 파일 충돌인 경우 프롬프트 시도
-            let handled = try_handle_link_conflict(&ir, &selected_target, &written_path, reason);
-            if !handled {
-                eprintln!("  {}: {}", console::style("Warning").yellow(), reason);
-            }
+            eprintln!("  {}: {}", console::style("Warning").yellow(), reason);
         }
         LinkResult::NotApplicable => {}
     }
 
     // ── 9. Post-write action ──────────────────────────────────────────────
-    handle_post_write_action(selected_target.post_write_action(&ir, &written_path))?;
+    handle_post_write_action(
+        selected_target.post_write_action(&ir, &written_path),
+        selected_target.display_name(),
+    )?;
 
     // ── 10. Update notice ─────────────────────────────────────────────────
     if let Some(info) = update::check_for_update() {
@@ -176,70 +182,7 @@ fn run() -> Result<()> {
     Ok(())
 }
 
-/// link 실패 시 일반 파일 충돌이면 프롬프트로 해결 시도
-fn try_handle_link_conflict(
-    ir: &ir::ThemeIR,
-    target: &Target,
-    written_path: &std::path::Path,
-    _reason: &str,
-) -> bool {
-    // link_path를 재계산해서 일반 파일인지 확인
-    let link_path = match get_link_path(ir, target) {
-        Some(p) => p,
-        None => return false,
-    };
-
-    if !store::is_regular_file(&link_path) {
-        return false;
-    }
-
-    match interactive::confirm_replace_with_symlink(&link_path) {
-        Ok(true) => {
-            #[cfg(unix)]
-            {
-                if let Err(e) = store::create_symlink(written_path, &link_path, true) {
-                    eprintln!("  {}: {}", console::style("Warning").yellow(), e);
-                    return false;
-                }
-                eprintln!("  Linked \u{2192} {}", link_path.display());
-                true
-            }
-            #[cfg(not(unix))]
-            {
-                let _ = written_path;
-                false
-            }
-        }
-        Ok(false) => {
-            eprintln!("  Skipped symlink.");
-            true // handled (user declined)
-        }
-        Err(_) => false,
-    }
-}
-
-/// 타겟별 symlink 경로 계산
-fn get_link_path(ir: &ir::ThemeIR, target: &Target) -> Option<std::path::PathBuf> {
-    match target {
-        Target::Ghostty => {
-            let xdg_dir = std::env::var("XDG_CONFIG_HOME")
-                .ok()
-                .filter(|s| !s.is_empty() && std::path::Path::new(s).is_absolute())
-                .map(std::path::PathBuf::from)
-                .or_else(|| dirs::home_dir().map(|h| h.join(".config")))?;
-            let filename = ir.name.replace(['/', '\\', '\0', ':', '\n', '\r'], "-");
-            let filename = filename.trim();
-            Some(xdg_dir.join("ghostty").join("themes").join(filename))
-        }
-        Target::Warp => {
-            let slug = store::theme_slug(&ir.name);
-            dirs::home_dir().map(|h| h.join(".warp/themes").join(format!("{slug}.yaml")))
-        }
-        Target::Superset => None,
-    }
-}
-
-fn handle_post_write_action(action: PostWriteAction) -> Result<()> {
+fn handle_post_write_action(action: PostWriteAction, target_name: &str) -> Result<()> {
     match action {
         PostWriteAction::Guide { message } => {
             eprintln!("\n{}", message);
@@ -262,7 +205,7 @@ fn handle_post_write_action(action: PostWriteAction) -> Result<()> {
             eprintln!("\n  {}", summary);
             target::print_config_diff(&old_content, &new_content, &config_path);
 
-            if interactive::is_tty() && interactive::confirm_apply_config()? {
+            if interactive::is_tty() && interactive::confirm_apply_config(target_name)? {
                 // Backup with timestamp
                 let timestamp = SystemTime::now()
                     .duration_since(UNIX_EPOCH)

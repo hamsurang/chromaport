@@ -69,27 +69,25 @@ pub fn existing_theme_path(ir: &ThemeIR) -> Option<PathBuf> {
     path.exists().then_some(path)
 }
 
+/// Symlink 대상 경로
+pub fn link_path(ir: &ThemeIR) -> Option<PathBuf> {
+    let slug = theme_slug(&ir.name);
+    dirs::home_dir().map(|h| h.join(".warp/themes").join(format!("{slug}.yaml")))
+}
+
 pub fn link(ir: &ThemeIR, written_path: &Path) -> LinkResult {
-    let warp_themes_dir = match dirs::home_dir() {
-        Some(h) => h.join(".warp/themes"),
+    let target_path = match link_path(ir) {
+        Some(p) => p,
         None => return LinkResult::Failed("cannot determine home directory".to_string()),
     };
 
-    let slug = theme_slug(&ir.name);
-    let link_path = warp_themes_dir.join(format!("{slug}.yaml"));
-
-    #[cfg(unix)]
-    {
-        match crate::store::create_symlink(written_path, &link_path, false) {
-            Ok(()) => LinkResult::Linked(link_path),
-            Err(e) => LinkResult::Failed(e.to_string()),
-        }
+    if crate::store::is_regular_file(&target_path) {
+        return LinkResult::Conflict(target_path);
     }
 
-    #[cfg(not(unix))]
-    {
-        let _ = link_path;
-        LinkResult::Failed("symlinks are not supported on this platform".to_string())
+    match crate::store::create_symlink(written_path, &target_path, false) {
+        Ok(()) => LinkResult::Linked(target_path),
+        Err(e) => LinkResult::Failed(e.to_string()),
     }
 }
 

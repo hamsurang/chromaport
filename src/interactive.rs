@@ -68,9 +68,9 @@ pub fn confirm_overwrite(path: &Path) -> Result<bool> {
     confirm(&format!("{} already exists. Overwrite?", path.display()))
 }
 
-/// Ghostty config 적용 확인
-pub fn confirm_apply_config() -> Result<bool> {
-    confirm("Apply to Ghostty config?")
+/// 타겟 config 적용 확인
+pub fn confirm_apply_config(target_name: &str) -> Result<bool> {
+    confirm(&format!("Apply to {} config?", target_name))
 }
 
 /// 일반 파일을 symlink로 대체 확인
