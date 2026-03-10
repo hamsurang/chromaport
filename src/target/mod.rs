@@ -4,20 +4,33 @@ pub mod warp;
 
 use crate::cli::Target;
 use crate::ir::ThemeIR;
-use crate::store;
-use anyhow::Result;
 use std::path::{Path, PathBuf};
 
-pub enum ActivateResult {
-    /// Config file does not exist — create it fresh.
-    CreateNew { path: PathBuf, content: String },
-    /// Existing config needs modification.
-    Modify {
+/// link() 결과 — Result가 아닌 자체 enum으로 경고 의미론 명시
+pub enum LinkResult {
+    /// Symlink 생성 성공
+    Linked(PathBuf),
+    /// 이 타겟은 symlink 불필요 (Superset)
+    NotApplicable,
+    /// Symlink 실패했지만 중앙 저장소 파일은 사용 가능
+    Failed(String),
+}
+
+/// 타겟이 선언적으로 반환. 오케스트레이터가 해석하여 실행.
+pub enum PostWriteAction {
+    /// 가이드 텍스트만 출력
+    Guide { message: String },
+    /// config 파일 수정 필요 (프롬프트, diff, 백업은 오케스트레이터가 처리)
+    ModifyConfig {
         config_path: PathBuf,
         old_content: String,
         new_content: String,
         summary: String,
+        decline_guide: String,
+        success_hint: Option<String>,
     },
+    /// config 파일이 없어서 새로 생성
+    CreateConfig { path: PathBuf, content: String },
 }
 
 impl Target {
@@ -29,7 +42,7 @@ impl Target {
         }
     }
 
-    pub fn write(&self, ir: &ThemeIR) -> Result<PathBuf> {
+    pub fn write(&self, ir: &ThemeIR) -> anyhow::Result<PathBuf> {
         match self {
             Target::Superset => superset::write(ir),
             Target::Warp => warp::write(ir),
@@ -37,19 +50,30 @@ impl Target {
         }
     }
 
-    pub fn activate(&self, ir: &ThemeIR) -> Result<Option<ActivateResult>> {
+    /// 중앙 저장소에 이미 같은 테마 파일이 있는지 확인
+    pub fn existing_theme_path(&self, ir: &ThemeIR) -> Option<PathBuf> {
         match self {
-            Target::Superset => superset::activate(ir).map(Some),
-            Target::Warp => Ok(None),
-            Target::Ghostty => ghostty::activate(ir).map(Some),
+            Target::Superset => superset::existing_theme_path(ir),
+            Target::Warp => warp::existing_theme_path(ir),
+            Target::Ghostty => ghostty::existing_theme_path(ir),
         }
     }
 
-    pub fn guide(&self, ir: &ThemeIR, written_path: &Path) -> String {
+    /// Symlink 생성 (Ghostty/Warp만 해당)
+    pub fn link(&self, ir: &ThemeIR, written_path: &Path) -> LinkResult {
         match self {
-            Target::Superset => superset::guide(ir, written_path),
-            Target::Warp => warp::guide(ir, written_path),
-            Target::Ghostty => ghostty::guide(ir, written_path),
+            Target::Superset => superset::link(),
+            Target::Warp => warp::link(ir, written_path),
+            Target::Ghostty => ghostty::link(ir, written_path),
+        }
+    }
+
+    /// 후속 동작을 선언적 데이터로 반환
+    pub fn post_write_action(&self, ir: &ThemeIR, written_path: &Path) -> PostWriteAction {
+        match self {
+            Target::Superset => superset::post_write_action(written_path),
+            Target::Warp => warp::post_write_action(written_path),
+            Target::Ghostty => ghostty::post_write_action(ir),
         }
     }
 
@@ -66,57 +90,7 @@ impl Target {
     }
 }
 
-pub fn run_activate(target: &Target, ir: &ThemeIR, auto_confirm: bool) -> Result<()> {
-    use crate::interactive;
-
-    let action = match target.activate(ir)? {
-        Some(action) => action,
-        None => {
-            eprintln!(
-                "  {} does not support --activate. Select the theme manually.",
-                target.display_name()
-            );
-            return Ok(());
-        }
-    };
-
-    match action {
-        ActivateResult::CreateNew { path, content } => {
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            store::atomic_write(&path, content.as_bytes())?;
-            eprintln!("  Created {}", path.display());
-        }
-        ActivateResult::Modify {
-            config_path,
-            old_content,
-            new_content,
-            summary,
-        } => {
-            eprintln!("  {}", summary);
-            print_config_diff(&old_content, &new_content, &config_path);
-
-            if !auto_confirm && !interactive::confirm_activate()? {
-                let guide = target.guide(ir, &config_path);
-                eprintln!("  Skipped.\n{}", guide);
-                return Ok(());
-            }
-
-            let backup_path = config_path.with_extension("chromaport-backup");
-            std::fs::copy(&config_path, &backup_path)?;
-            store::atomic_write(&config_path, new_content.as_bytes())?;
-            eprintln!("  Backup: {}", backup_path.display());
-            eprintln!("  Config updated.");
-            if matches!(target, Target::Ghostty) {
-                eprintln!("  Reload Ghostty config to apply (Cmd+Shift+, on macOS).");
-            }
-        }
-    }
-    Ok(())
-}
-
-fn print_config_diff(old: &str, new: &str, path: &Path) {
+pub fn print_config_diff(old: &str, new: &str, path: &Path) {
     use console::Style;
     use similar::{ChangeTag, TextDiff};
 

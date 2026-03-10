@@ -14,6 +14,8 @@ use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Command, Editor, Target};
 use reader::{detect_editors, ThemeReader};
+use std::time::{SystemTime, UNIX_EPOCH};
+use target::{LinkResult, PostWriteAction};
 
 fn main() {
     if let Err(e) = run() {
@@ -28,14 +30,6 @@ fn run() -> Result<()> {
     // Handle subcommands
     if let Some(Command::Update) = cli.command {
         return update::run_update();
-    }
-
-    // Handle deprecated --no-activate
-    if cli.no_activate {
-        eprintln!(
-            "Warning: --no-activate is deprecated. Themes are no longer activated by default.\n\
-             Use --activate to explicitly activate a theme. --no-activate will be removed in v0.3.0."
-        );
     }
 
     // ── 1. Resolve editor ─────────────────────────────────────────────────
@@ -115,25 +109,18 @@ fn run() -> Result<()> {
     };
 
     // ── 4. Select theme (single-select with live preview) ─────────────────
-    let selected_entry = if cli.yes {
-        active_id
-            .as_deref()
-            .and_then(|id| all_themes.iter().find(|t| t.settings_id == id))
-            .or_else(|| all_themes.first())
-            .cloned()
-            .ok_or_else(|| anyhow::anyhow!("No theme to select"))?
-    } else if !interactive::is_tty() {
-        anyhow::bail!("Not a TTY. Use --yes for non-interactive mode.");
-    } else {
-        match preview::select_theme_with_preview(
-            &all_themes,
-            active_id.as_deref(),
-            &reader,
-            &selected_target,
-        )? {
-            Some(entry) => entry,
-            None => std::process::exit(0),
-        }
+    if !interactive::is_tty() {
+        anyhow::bail!("Not a TTY. chromaport requires an interactive terminal.");
+    }
+
+    let selected_entry = match preview::select_theme_with_preview(
+        &all_themes,
+        active_id.as_deref(),
+        &reader,
+        &selected_target,
+    )? {
+        Some(entry) => entry,
+        None => std::process::exit(0),
     };
 
     // ── 5. Convert ────────────────────────────────────────────────────────
@@ -141,32 +128,159 @@ fn run() -> Result<()> {
     let theme_json = reader.read_theme_json(&selected_entry)?;
     let ir = converter::convert(&selected_entry, &theme_json)?;
 
-    // ── 6. Write ──────────────────────────────────────────────────────────
+    // ── 6. Overwrite check ────────────────────────────────────────────────
+    if let Some(existing) = selected_target.existing_theme_path(&ir) {
+        if !interactive::confirm_overwrite(&existing)? {
+            eprintln!("  Skipped.");
+            return Ok(());
+        }
+    }
+
+    // ── 7. Write to central store ─────────────────────────────────────────
     println!();
-    match selected_target.write(&ir) {
+    let written_path = match selected_target.write(&ir) {
         Ok(path) => {
             println!("  \u{2714} {} \u{2192} {}", ir.name, path.display());
-
-            // ── 7. Activate or Guide ──────────────────────────────────────
-            if cli.activate {
-                target::run_activate(&selected_target, &ir, cli.yes)?;
-            } else {
-                let guide = selected_target.guide(&ir, &path);
-                if !guide.is_empty() {
-                    println!("\n{}", guide);
-                }
-            }
+            path
         }
         Err(e) => {
             eprintln!("  \u{2717} {}: {e:#}", ir.name);
             std::process::exit(1);
         }
+    };
+
+    // ── 8. Create symlink ─────────────────────────────────────────────────
+    let link_result = selected_target.link(&ir, &written_path);
+    match &link_result {
+        LinkResult::Linked(p) => {
+            eprintln!("  Linked \u{2192} {}", p.display());
+        }
+        LinkResult::Failed(reason) => {
+            // 일반 파일 충돌인 경우 프롬프트 시도
+            let handled = try_handle_link_conflict(&ir, &selected_target, &written_path, reason);
+            if !handled {
+                eprintln!("  {}: {}", console::style("Warning").yellow(), reason);
+            }
+        }
+        LinkResult::NotApplicable => {}
     }
 
-    // ── 8. Update notice ────────────────────────────────────────────────
+    // ── 9. Post-write action ──────────────────────────────────────────────
+    handle_post_write_action(selected_target.post_write_action(&ir, &written_path))?;
+
+    // ── 10. Update notice ─────────────────────────────────────────────────
     if let Some(info) = update::check_for_update() {
         update::print_update_notice(&info);
     }
 
+    Ok(())
+}
+
+/// link 실패 시 일반 파일 충돌이면 프롬프트로 해결 시도
+fn try_handle_link_conflict(
+    ir: &ir::ThemeIR,
+    target: &Target,
+    written_path: &std::path::Path,
+    _reason: &str,
+) -> bool {
+    // link_path를 재계산해서 일반 파일인지 확인
+    let link_path = match get_link_path(ir, target) {
+        Some(p) => p,
+        None => return false,
+    };
+
+    if !store::is_regular_file(&link_path) {
+        return false;
+    }
+
+    match interactive::confirm_replace_with_symlink(&link_path) {
+        Ok(true) => {
+            #[cfg(unix)]
+            {
+                if let Err(e) = store::create_symlink(written_path, &link_path, true) {
+                    eprintln!("  {}: {}", console::style("Warning").yellow(), e);
+                    return false;
+                }
+                eprintln!("  Linked \u{2192} {}", link_path.display());
+                true
+            }
+            #[cfg(not(unix))]
+            {
+                let _ = written_path;
+                false
+            }
+        }
+        Ok(false) => {
+            eprintln!("  Skipped symlink.");
+            true // handled (user declined)
+        }
+        Err(_) => false,
+    }
+}
+
+/// 타겟별 symlink 경로 계산
+fn get_link_path(ir: &ir::ThemeIR, target: &Target) -> Option<std::path::PathBuf> {
+    match target {
+        Target::Ghostty => {
+            let xdg_dir = std::env::var("XDG_CONFIG_HOME")
+                .ok()
+                .filter(|s| !s.is_empty() && std::path::Path::new(s).is_absolute())
+                .map(std::path::PathBuf::from)
+                .or_else(|| dirs::home_dir().map(|h| h.join(".config")))?;
+            let filename = ir.name.replace(['/', '\\', '\0', ':', '\n', '\r'], "-");
+            let filename = filename.trim();
+            Some(xdg_dir.join("ghostty").join("themes").join(filename))
+        }
+        Target::Warp => {
+            let slug = store::theme_slug(&ir.name);
+            dirs::home_dir().map(|h| h.join(".warp/themes").join(format!("{slug}.yaml")))
+        }
+        Target::Superset => None,
+    }
+}
+
+fn handle_post_write_action(action: PostWriteAction) -> Result<()> {
+    match action {
+        PostWriteAction::Guide { message } => {
+            eprintln!("\n{}", message);
+        }
+        PostWriteAction::CreateConfig { path, content } => {
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            store::atomic_write(&path, content.as_bytes())?;
+            eprintln!("  \u{2714} Created {}", path.display());
+        }
+        PostWriteAction::ModifyConfig {
+            config_path,
+            old_content,
+            new_content,
+            summary,
+            decline_guide,
+            success_hint,
+        } => {
+            eprintln!("\n  {}", summary);
+            target::print_config_diff(&old_content, &new_content, &config_path);
+
+            if interactive::is_tty() && interactive::confirm_apply_config()? {
+                // Backup with timestamp
+                let timestamp = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs();
+                let backup = config_path.with_file_name(format!("config.bak.{}", timestamp));
+                std::fs::copy(&config_path, &backup)?;
+                eprintln!("  \u{2714} Backed up \u{2192} {}", backup.display());
+
+                store::atomic_write(&config_path, new_content.as_bytes())?;
+                eprintln!("  \u{2714} Updated config");
+                if let Some(hint) = success_hint {
+                    eprintln!("  {}", hint);
+                }
+            } else {
+                eprintln!("\n{}", decline_guide);
+            }
+        }
+    }
     Ok(())
 }

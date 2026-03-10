@@ -1,98 +1,51 @@
 use crate::ir::ThemeIR;
-use crate::store::atomic_write;
-use crate::target::ActivateResult;
+use crate::store::{atomic_write, chromaport_themes_dir, theme_slug};
+use crate::target::{LinkResult, PostWriteAction};
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
 pub fn detect() -> bool {
     dirs::home_dir()
-        .map(|h| h.join(".superset/app-state.json").exists())
+        .map(|h| h.join(".superset").exists())
         .unwrap_or(false)
 }
 
-fn app_state_path() -> Result<PathBuf> {
-    Ok(dirs::home_dir()
-        .context("cannot determine home directory")?
-        .join(".superset/app-state.json"))
-}
-
 pub fn write(ir: &ThemeIR) -> Result<PathBuf> {
-    let path = app_state_path()?;
+    let themes_dir =
+        chromaport_themes_dir("superset").context("cannot determine home directory")?;
 
-    if is_superset_running() {
-        anyhow::bail!(
-            "Superset is running. Quit Superset first, then run chromaport again.\n\
-             (Superset keeps app-state.json in memory and will overwrite your changes.)"
-        );
-    }
+    std::fs::create_dir_all(&themes_dir)
+        .with_context(|| format!("cannot create {}", themes_dir.display()))?;
 
-    let raw = std::fs::read_to_string(&path)
-        .with_context(|| format!("cannot read {}", path.display()))?;
+    let slug = theme_slug(&ir.name);
+    let path = themes_dir.join(format!("chromaport-{slug}.json"));
 
-    let mut state: serde_json::Value =
-        serde_json::from_str(&raw).context("app-state.json is not valid JSON")?;
-
-    let custom_themes = state["themeState"]["customThemes"]
-        .as_array_mut()
-        .context("themeState.customThemes not found in app-state.json")?;
-
-    let new_theme = ir_to_json(ir);
-
-    if let Some(pos) = custom_themes.iter().position(|t| t["id"] == ir.id) {
-        custom_themes[pos] = new_theme;
-    } else {
-        custom_themes.push(new_theme);
-    }
-
-    let output = serde_json::to_vec_pretty(&state).context("failed to serialize app-state")?;
+    let json = ir_to_json(ir);
+    let output = serde_json::to_vec_pretty(&json).context("failed to serialize theme")?;
     atomic_write(&path, &output).with_context(|| format!("failed to write {}", path.display()))?;
 
     Ok(path)
 }
 
-pub fn activate(ir: &ThemeIR) -> Result<ActivateResult> {
-    let path = app_state_path()?;
-
-    let old_content = std::fs::read_to_string(&path)
-        .with_context(|| format!("cannot read {}", path.display()))?;
-
-    let mut state: serde_json::Value =
-        serde_json::from_str(&old_content).context("app-state.json is not valid JSON")?;
-
-    let old_active = state["themeState"]["activeThemeId"]
-        .as_str()
-        .unwrap_or("(none)")
-        .to_string();
-
-    state["themeState"]["activeThemeId"] = serde_json::json!(ir.id);
-
-    let new_content =
-        serde_json::to_string_pretty(&state).context("failed to serialize app-state")?;
-
-    let summary = format!("activeThemeId: {} -> {}", old_active, ir.id);
-
-    Ok(ActivateResult::Modify {
-        config_path: path,
-        old_content,
-        new_content,
-        summary,
-    })
+pub fn existing_theme_path(ir: &ThemeIR) -> Option<PathBuf> {
+    let themes_dir = chromaport_themes_dir("superset")?;
+    let slug = theme_slug(&ir.name);
+    let path = themes_dir.join(format!("chromaport-{slug}.json"));
+    path.exists().then_some(path)
 }
 
-pub fn guide(ir: &ThemeIR, written_path: &Path) -> String {
-    format!(
-        "  Theme '{}' written to {}.\n  \
-         Restart Superset to see it.\n  \
-         Use --activate to set it as the active theme.",
-        ir.name,
-        written_path.display()
-    )
+pub fn link() -> LinkResult {
+    LinkResult::NotApplicable
 }
 
-fn is_superset_running() -> bool {
-    dirs::home_dir()
-        .map(|h| h.join(".superset/terminal-host.pid").exists())
-        .unwrap_or(false)
+pub fn post_write_action(written_path: &Path) -> PostWriteAction {
+    PostWriteAction::Guide {
+        message: format!(
+            "  Open Superset \u{2192} Settings \u{2192} Appearance \u{2192}\n  \
+             Import Theme \u{2192} select {}",
+            written_path.display()
+        ),
+    }
 }
 
 fn ir_to_json(ir: &ThemeIR) -> serde_json::Value {

@@ -45,24 +45,21 @@ fn invalid_target_fails() {
 }
 
 #[test]
-fn yes_mode_without_tty_runs() {
-    // --yes mode should not hang waiting for TTY input.
-    // It will fail because no editor is installed in CI, but it should not hang.
-    let assert = cmd().arg("--yes").assert();
-
-    // Either succeeds (if editor found) or fails with a meaningful error
+fn non_tty_exits_with_error() {
+    // Without a TTY, chromaport should exit with a meaningful error.
+    // It will either fail because no editor is found, or reach the TTY check.
+    let assert = cmd().assert();
     let output = assert.get_output().clone();
     let stderr = String::from_utf8_lossy(&output.stderr);
     let stdout = String::from_utf8_lossy(&output.stdout);
     let combined = format!("{stdout}{stderr}");
 
-    // Should not be a usage error — it should reach the editor detection phase
     assert!(
         combined.contains("No VS Code")
             || combined.contains("No themes")
             || combined.contains("No supported target")
-            || combined.contains("Editor:")
-            || combined.contains("Converting"),
+            || combined.contains("Not a TTY")
+            || combined.contains("interactive terminal"),
         "unexpected output: {combined}"
     );
 }
@@ -70,7 +67,7 @@ fn yes_mode_without_tty_runs() {
 #[test]
 fn ghostty_target_accepted() {
     // --target ghostty should be accepted as a valid target value
-    let assert = cmd().args(["--target", "ghostty", "--yes"]).assert();
+    let assert = cmd().args(["--target", "ghostty"]).assert();
     let output = assert.get_output().clone();
     let stderr = String::from_utf8_lossy(&output.stderr);
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -84,18 +81,20 @@ fn ghostty_target_accepted() {
 }
 
 #[test]
-fn activate_flag_accepted() {
-    // --activate should be accepted without error
-    let assert = cmd().args(["--activate", "--yes"]).assert();
-    let output = assert.get_output().clone();
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    let combined = format!("{stdout}{stderr}");
+fn removed_flags_are_rejected() {
+    // --activate should no longer be accepted
+    cmd()
+        .arg("--activate")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("unexpected argument"));
 
-    assert!(
-        !combined.contains("unexpected argument"),
-        "--activate should be accepted: {combined}"
-    );
+    // --yes should no longer be accepted
+    cmd()
+        .arg("--yes")
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("unexpected argument"));
 }
 
 #[test]
@@ -119,7 +118,7 @@ fn update_subcommand_help() {
 #[test]
 fn existing_flags_work_with_subcommand_added() {
     // Ensure existing flags still work after subcommand was added
-    let assert = cmd().args(["--editor", "vscode", "--yes"]).assert();
+    let assert = cmd().args(["--editor", "vscode"]).assert();
     let output = assert.get_output().clone();
     let stderr = String::from_utf8_lossy(&output.stderr);
     let stdout = String::from_utf8_lossy(&output.stdout);
