@@ -116,6 +116,34 @@ fn update_subcommand_help() {
 }
 
 #[test]
+fn short_version_flag() {
+    cmd()
+        .arg("-v")
+        .assert()
+        .success()
+        .stdout(predicate::str::starts_with("chromaport"));
+}
+
+#[test]
+fn update_subcommand_accepts_yes_flag() {
+    // --yes should be accepted as a valid flag on the update subcommand
+    cmd()
+        .args(["update", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--yes"));
+}
+
+#[test]
+fn update_subcommand_accepts_short_yes_flag() {
+    cmd()
+        .args(["update", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("-y"));
+}
+
+#[test]
 fn existing_flags_work_with_subcommand_added() {
     // Ensure existing flags still work after subcommand was added
     let assert = cmd().args(["--editor", "vscode"]).assert();

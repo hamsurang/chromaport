@@ -28,8 +28,8 @@ fn run() -> Result<()> {
     let cli = Cli::parse();
 
     // Handle subcommands
-    if let Some(Command::Update) = cli.command {
-        return update::run_update();
+    if let Some(Command::Update { yes }) = cli.command {
+        return update::run_update(yes);
     }
 
     // ── 1. Resolve editor ─────────────────────────────────────────────────

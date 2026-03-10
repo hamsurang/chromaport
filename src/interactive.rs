@@ -81,6 +81,18 @@ pub fn confirm_replace_with_symlink(path: &Path) -> Result<bool> {
     ))
 }
 
+pub fn confirm_update(current: &str, latest: &str, method: &str) -> Result<bool> {
+    let message = format!(
+        "Upgrade chromaport {} \u{2192} {} via {}?",
+        current, latest, method
+    );
+    let answer = inquire::Confirm::new(&message)
+        .with_default(true)
+        .prompt()
+        .map_err(handle_inquire_error)?;
+    Ok(answer)
+}
+
 fn handle_inquire_error(e: InquireError) -> anyhow::Error {
     match e {
         InquireError::NotTTY => {

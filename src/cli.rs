@@ -4,9 +4,14 @@ use clap::{Parser, Subcommand, ValueEnum};
 #[command(
     version,
     about = "Migrate VS Code / Cursor themes to Superset, Warp, Ghostty, and more",
-    long_about = None
+    long_about = None,
+    disable_version_flag = true
 )]
 pub struct Cli {
+    /// Print version
+    #[arg(short = 'v', long = "version", action = clap::ArgAction::Version)]
+    pub version: (),
+
     #[command(subcommand)]
     pub command: Option<Command>,
 
@@ -22,7 +27,11 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Command {
     /// Check for updates and upgrade chromaport
-    Update,
+    Update {
+        /// Skip confirmation prompt
+        #[arg(short = 'y', long)]
+        yes: bool,
+    },
 }
 
 #[derive(Clone, ValueEnum, Debug, PartialEq)]
