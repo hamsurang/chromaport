@@ -2,6 +2,7 @@ use crate::ir::ThemeIR;
 use crate::store::{atomic_write, chromaport_themes_dir, theme_slug};
 use crate::target::{LinkResult, PostWriteAction};
 use anyhow::{Context, Result};
+use serde_json::json;
 use std::path::{Path, PathBuf};
 
 pub fn detect() -> bool {
@@ -51,6 +52,35 @@ pub fn post_write_action(written_path: &Path) -> PostWriteAction {
 fn ir_to_json(ir: &ThemeIR) -> serde_json::Value {
     let t = &ir.terminal;
 
+    // Build terminal object dynamically so None fields are omitted (not null).
+    // Superset's Zod schema uses z.string().optional() which rejects null.
+    let mut terminal = serde_json::Map::new();
+    terminal.insert("background".into(), json!(t.background.as_str()));
+    terminal.insert("foreground".into(), json!(t.foreground.as_str()));
+    terminal.insert("cursor".into(), json!(t.cursor.as_str()));
+    if let Some(ref c) = t.cursor_accent {
+        terminal.insert("cursorAccent".into(), json!(c.as_str()));
+    }
+    if let Some(ref c) = t.selection_bg {
+        terminal.insert("selectionBackground".into(), json!(c.as_str()));
+    }
+    terminal.insert("black".into(), json!(t.normal.black.as_str()));
+    terminal.insert("red".into(), json!(t.normal.red.as_str()));
+    terminal.insert("green".into(), json!(t.normal.green.as_str()));
+    terminal.insert("yellow".into(), json!(t.normal.yellow.as_str()));
+    terminal.insert("blue".into(), json!(t.normal.blue.as_str()));
+    terminal.insert("magenta".into(), json!(t.normal.magenta.as_str()));
+    terminal.insert("cyan".into(), json!(t.normal.cyan.as_str()));
+    terminal.insert("white".into(), json!(t.normal.white.as_str()));
+    terminal.insert("brightBlack".into(), json!(t.bright.black.as_str()));
+    terminal.insert("brightRed".into(), json!(t.bright.red.as_str()));
+    terminal.insert("brightGreen".into(), json!(t.bright.green.as_str()));
+    terminal.insert("brightYellow".into(), json!(t.bright.yellow.as_str()));
+    terminal.insert("brightBlue".into(), json!(t.bright.blue.as_str()));
+    terminal.insert("brightMagenta".into(), json!(t.bright.magenta.as_str()));
+    terminal.insert("brightCyan".into(), json!(t.bright.cyan.as_str()));
+    terminal.insert("brightWhite".into(), json!(t.bright.white.as_str()));
+
     serde_json::json!({
         "id": ir.id,
         "name": ir.name,
@@ -96,29 +126,7 @@ fn ir_to_json(ir: &ThemeIR) -> serde_json::Value {
             "highlightMatch": format!("{}33", ir.accent.as_str()),
             "highlightActive": format!("{}80", ir.accent.as_str()),
         },
-        "terminal": {
-            "background": t.background.as_str(),
-            "foreground": t.foreground.as_str(),
-            "cursor": t.cursor.as_str(),
-            "cursorAccent": t.cursor_accent.as_ref().map(|c| c.as_str()),
-            "selectionBackground": t.selection_bg.as_ref().map(|c| c.as_str()),
-            "black": t.normal.black.as_str(),
-            "red": t.normal.red.as_str(),
-            "green": t.normal.green.as_str(),
-            "yellow": t.normal.yellow.as_str(),
-            "blue": t.normal.blue.as_str(),
-            "magenta": t.normal.magenta.as_str(),
-            "cyan": t.normal.cyan.as_str(),
-            "white": t.normal.white.as_str(),
-            "brightBlack": t.bright.black.as_str(),
-            "brightRed": t.bright.red.as_str(),
-            "brightGreen": t.bright.green.as_str(),
-            "brightYellow": t.bright.yellow.as_str(),
-            "brightBlue": t.bright.blue.as_str(),
-            "brightMagenta": t.bright.magenta.as_str(),
-            "brightCyan": t.bright.cyan.as_str(),
-            "brightWhite": t.bright.white.as_str(),
-        }
+        "terminal": serde_json::Value::Object(terminal),
     })
 }
 
@@ -163,5 +171,88 @@ mod tests {
         assert_eq!(json["terminal"]["red"], "#FF0000");
         assert_eq!(json["terminal"]["brightRed"], "#FF0000");
         assert_eq!(json["terminal"]["selectionBackground"], "#264F78");
+    }
+
+    #[test]
+    fn ir_to_json_omits_none_terminal_fields() {
+        let mut ir = make_test_ir();
+        ir.terminal.cursor_accent = None;
+        ir.terminal.selection_bg = None;
+        let json = ir_to_json(&ir);
+
+        assert!(json["terminal"].get("cursorAccent").is_none());
+        assert!(json["terminal"].get("selectionBackground").is_none());
+    }
+
+    #[test]
+    fn ir_to_json_includes_some_terminal_optional_fields() {
+        let mut ir = make_test_ir();
+        let c = |s: &str| crate::ir::HexColor::parse(s).unwrap();
+        ir.terminal.cursor_accent = Some(c("#FF0000"));
+        ir.terminal.selection_bg = Some(c("#00FF00"));
+        let json = ir_to_json(&ir);
+
+        assert_eq!(json["terminal"]["cursorAccent"], "#FF0000");
+        assert_eq!(json["terminal"]["selectionBackground"], "#00FF00");
+    }
+
+    #[test]
+    fn ir_to_json_no_null_values() {
+        let ir = make_test_ir();
+        let json = ir_to_json(&ir);
+
+        fn assert_no_nulls(value: &serde_json::Value, path: &str) {
+            match value {
+                serde_json::Value::Null => panic!("null found at {}", path),
+                serde_json::Value::Object(map) => {
+                    for (k, v) in map {
+                        assert_no_nulls(v, &format!("{}.{}", path, k));
+                    }
+                }
+                serde_json::Value::Array(arr) => {
+                    for (i, v) in arr.iter().enumerate() {
+                        assert_no_nulls(v, &format!("{}[{}]", path, i));
+                    }
+                }
+                _ => {}
+            }
+        }
+        assert_no_nulls(&json, "root");
+    }
+
+    #[test]
+    fn ir_to_json_terminal_has_all_required_ansi_colors() {
+        let ir = make_test_ir();
+        let json = ir_to_json(&ir);
+        let terminal = &json["terminal"];
+
+        let required = [
+            "background",
+            "foreground",
+            "cursor",
+            "black",
+            "red",
+            "green",
+            "yellow",
+            "blue",
+            "magenta",
+            "cyan",
+            "white",
+            "brightBlack",
+            "brightRed",
+            "brightGreen",
+            "brightYellow",
+            "brightBlue",
+            "brightMagenta",
+            "brightCyan",
+            "brightWhite",
+        ];
+        for key in required {
+            assert!(
+                terminal.get(key).is_some(),
+                "missing required terminal key: {}",
+                key
+            );
+        }
     }
 }
