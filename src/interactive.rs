@@ -2,6 +2,7 @@ use crate::cli::{Editor, Target};
 use anyhow::Result;
 use inquire::{InquireError, Select};
 use std::io::IsTerminal;
+use std::path::Path;
 
 pub fn is_tty() -> bool {
     std::io::stdin().is_terminal()
@@ -54,12 +55,30 @@ pub fn select_target(available: &[Target]) -> Result<Target> {
     Ok(available[idx].clone())
 }
 
-pub fn confirm_activate() -> Result<bool> {
-    let answer = inquire::Confirm::new("Apply this change?")
+/// 범용 확인 프롬프트 (default=false)
+fn confirm(prompt: &str) -> Result<bool> {
+    inquire::Confirm::new(prompt)
         .with_default(false)
         .prompt()
-        .map_err(handle_inquire_error)?;
-    Ok(answer)
+        .map_err(handle_inquire_error)
+}
+
+/// 기존 테마 파일 덮어쓰기 확인
+pub fn confirm_overwrite(path: &Path) -> Result<bool> {
+    confirm(&format!("{} already exists. Overwrite?", path.display()))
+}
+
+/// 타겟 config 적용 확인
+pub fn confirm_apply_config(target_name: &str) -> Result<bool> {
+    confirm(&format!("Apply to {} config?", target_name))
+}
+
+/// 일반 파일을 symlink로 대체 확인
+pub fn confirm_replace_with_symlink(path: &Path) -> Result<bool> {
+    confirm(&format!(
+        "A file exists at {}. Replace with symlink?",
+        path.display()
+    ))
 }
 
 pub fn confirm_update(current: &str, latest: &str, method: &str) -> Result<bool> {
@@ -77,7 +96,7 @@ pub fn confirm_update(current: &str, latest: &str, method: &str) -> Result<bool>
 fn handle_inquire_error(e: InquireError) -> anyhow::Error {
     match e {
         InquireError::NotTTY => {
-            anyhow::anyhow!("Not a TTY. Use --yes for non-interactive mode.")
+            anyhow::anyhow!("Not a TTY. chromaport requires an interactive terminal.")
         }
         InquireError::OperationCanceled => {
             std::process::exit(0);

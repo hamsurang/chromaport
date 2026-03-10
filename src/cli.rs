@@ -22,19 +22,6 @@ pub struct Cli {
     /// Target app to write themes to
     #[arg(short, long, value_enum)]
     pub target: Option<Target>,
-
-    /// Non-interactive: import current active theme to all detected targets
-    /// (Back up your config directory before running)
-    #[arg(short = 'y', long)]
-    pub yes: bool,
-
-    /// Apply the theme to the target app's config
-    #[arg(long)]
-    pub activate: bool,
-
-    /// Deprecated: themes are no longer activated by default. Use --activate instead.
-    #[arg(long, hide = true)]
-    pub no_activate: bool,
 }
 
 #[derive(Subcommand)]

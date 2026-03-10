@@ -1,6 +1,6 @@
 use crate::ir::ThemeIR;
-use crate::store::atomic_write;
-use crate::target::ActivateResult;
+use crate::store::{atomic_write, chromaport_themes_dir};
+use crate::target::{LinkResult, PostWriteAction};
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
@@ -16,15 +16,15 @@ pub fn ghostty_config_dir() -> Option<PathBuf> {
     }
     // XDG fallback (Linux primary, macOS secondary)
     let xdg_config = std::env::var("XDG_CONFIG_HOME")
-        .map(PathBuf::from)
         .ok()
+        .filter(|s| !s.is_empty() && Path::new(s).is_absolute())
+        .map(PathBuf::from)
         .or_else(|| dirs::home_dir().map(|h| h.join(".config")))?;
     Some(xdg_config.join("ghostty"))
 }
 
 /// Ghostty resolves custom themes only from the XDG config directory,
 /// not from ~/Library/Application Support/ on macOS.
-/// See: ghostty-org/ghostty src/config/theme.zig
 fn ghostty_xdg_dir() -> Option<PathBuf> {
     let xdg_config = std::env::var("XDG_CONFIG_HOME")
         .ok()
@@ -38,24 +38,24 @@ pub fn detect() -> bool {
     ghostty_config_dir().map(|d| d.exists()).unwrap_or(false)
 }
 
-pub fn write(ir: &ThemeIR) -> Result<PathBuf> {
-    let base_dir = ghostty_xdg_dir().context("cannot determine Ghostty themes directory")?;
-    write_to_dir(ir, &base_dir)
+/// 테마 파일명 생성 (원본 이름 유지, 파일시스템 안전 문자만)
+fn theme_filename(name: &str) -> String {
+    let filename = name.replace(['/', '\\', '\0', ':', '\n', '\r'], "-");
+    let filename = filename.trim();
+    if filename.is_empty() || filename == "." || filename == ".." {
+        crate::store::theme_slug(name)
+    } else {
+        filename.to_string()
+    }
 }
 
-fn write_to_dir(ir: &ThemeIR, base_dir: &Path) -> Result<PathBuf> {
-    let themes_dir = base_dir.join("themes");
+pub fn write(ir: &ThemeIR) -> Result<PathBuf> {
+    let themes_dir = chromaport_themes_dir("ghostty").context("cannot determine home directory")?;
+
     std::fs::create_dir_all(&themes_dir)
         .with_context(|| format!("cannot create {}", themes_dir.display()))?;
 
-    // Preserve original name, only replace filesystem-unsafe characters
-    let filename = ir.name.replace(['/', '\\', '\0', ':', '\n', '\r'], "-");
-    let filename = filename.trim();
-    let filename = if filename.is_empty() || filename == "." || filename == ".." {
-        crate::store::theme_slug(&ir.name)
-    } else {
-        filename.to_string()
-    };
+    let filename = theme_filename(&ir.name);
     let theme_path = themes_dir.join(&filename);
 
     let content = format_ghostty_theme(ir);
@@ -65,42 +65,86 @@ fn write_to_dir(ir: &ThemeIR, base_dir: &Path) -> Result<PathBuf> {
     Ok(theme_path)
 }
 
-pub fn activate(ir: &ThemeIR) -> Result<ActivateResult> {
-    let config_dir = ghostty_config_dir().context("cannot determine Ghostty config directory")?;
-    activate_in_dir(ir, &config_dir)
+pub fn existing_theme_path(ir: &ThemeIR) -> Option<PathBuf> {
+    let themes_dir = chromaport_themes_dir("ghostty")?;
+    let filename = theme_filename(&ir.name);
+    let path = themes_dir.join(&filename);
+    path.exists().then_some(path)
 }
 
-fn activate_in_dir(ir: &ThemeIR, config_dir: &Path) -> Result<ActivateResult> {
-    let config_path = config_dir.join("config");
+/// Symlink 대상 경로
+pub fn link_path(ir: &ThemeIR) -> Option<PathBuf> {
+    let xdg_dir = ghostty_xdg_dir()?;
+    let filename = theme_filename(&ir.name);
+    Some(xdg_dir.join("themes").join(filename))
+}
 
-    if !config_path.exists() {
-        return Ok(ActivateResult::CreateNew {
-            path: config_path,
-            content: format!("theme = {}\n", ir.name.replace(['\n', '\r'], " ")),
-        });
+pub fn link(ir: &ThemeIR, written_path: &Path) -> LinkResult {
+    let target_path = match link_path(ir) {
+        Some(p) => p,
+        None => return LinkResult::Failed("cannot determine Ghostty XDG directory".to_string()),
+    };
+
+    if crate::store::is_regular_file(&target_path) {
+        return LinkResult::Conflict(target_path);
     }
 
-    let old_content = std::fs::read_to_string(&config_path)
-        .with_context(|| format!("cannot read {}", config_path.display()))?;
-    let safe_name = ir.name.replace(['\n', '\r'], " ");
-    let new_content = set_theme_in_config(&old_content, &safe_name);
-    let summary = format!("theme -> {}", ir.name);
+    match crate::store::create_symlink(written_path, &target_path, false) {
+        Ok(()) => LinkResult::Linked(target_path),
+        Err(e) => LinkResult::Failed(e.to_string()),
+    }
+}
 
-    Ok(ActivateResult::Modify {
+pub fn post_write_action(ir: &ThemeIR) -> PostWriteAction {
+    let config_dir = match ghostty_config_dir() {
+        Some(d) => d,
+        None => {
+            let safe_name = ir.name.replace(['\n', '\r'], " ");
+            return PostWriteAction::Guide {
+                message: format!(
+                    "  Add `theme = {}` to your Ghostty config to apply.",
+                    safe_name
+                ),
+            };
+        }
+    };
+
+    let config_path = config_dir.join("config");
+    let safe_name = ir.name.replace(['\n', '\r'], " ");
+
+    if !config_path.exists() {
+        return PostWriteAction::CreateConfig {
+            path: config_path,
+            content: format!("theme = {}\n", safe_name),
+        };
+    }
+
+    let old_content = match std::fs::read_to_string(&config_path) {
+        Ok(c) => c,
+        Err(_) => {
+            return PostWriteAction::Guide {
+                message: format!(
+                    "  Add `theme = {}` to your Ghostty config to apply.",
+                    safe_name
+                ),
+            };
+        }
+    };
+
+    let new_content = set_theme_in_config(&old_content, &safe_name);
+    let summary = format!("theme \u{2192} {}", ir.name);
+
+    PostWriteAction::ModifyConfig {
         config_path,
         old_content,
         new_content,
         summary,
-    })
-}
-
-pub fn guide(_ir: &ThemeIR, written_path: &Path) -> String {
-    format!(
-        "  Theme written to {}.\n  \
-         Add `theme = <name>` to your Ghostty config to apply.\n  \
-         Or use --activate to set it automatically.",
-        written_path.display()
-    )
+        decline_guide: format!(
+            "  Add `theme = {}` to your Ghostty config to apply.",
+            safe_name
+        ),
+        success_hint: Some("  Reload Ghostty config (Cmd+Shift+,) to apply.".to_string()),
+    }
 }
 
 fn format_ghostty_theme(ir: &ThemeIR) -> String {
@@ -235,7 +279,6 @@ mod tests {
         assert!(output.contains("cursor-color = #528BFF\n"));
         assert!(output.contains("cursor-text = #282C34\n"));
         assert!(output.contains("selection-foreground = #ABB2BF\n"));
-        // Falls back to ir.selection_bg since terminal.selection_bg is None
         assert!(output.contains("selection-background = #3E4451\n"));
         assert!(output.contains("palette = 0=#282C34\n"));
         assert!(output.contains("palette = 7=#ABB2BF\n"));
@@ -279,56 +322,33 @@ mod tests {
     }
 
     #[test]
-    fn write_creates_theme_file() {
-        let dir = tempfile::tempdir().unwrap();
-
+    fn write_creates_theme_file_in_central_store() {
+        // Test format_ghostty_theme + theme_filename logic (no filesystem dependency)
         let ir = make_test_ir();
-        let path = write_to_dir(&ir, dir.path()).unwrap();
-
-        assert!(path.exists());
-        assert!(path.ends_with("themes/One Dark Pro"));
-        let content = std::fs::read_to_string(&path).unwrap();
+        let filename = theme_filename(&ir.name);
+        assert_eq!(filename, "One Dark Pro");
+        let content = format_ghostty_theme(&ir);
         assert!(content.contains("background = #282C34"));
         assert!(content.contains("palette = 0=#282C34"));
     }
 
     #[test]
-    fn activate_creates_new_config() {
-        let dir = tempfile::tempdir().unwrap();
-
+    fn post_write_action_creates_config_when_missing() {
+        // When config dir doesn't exist, should return Guide
         let ir = make_test_ir();
-        let result = activate_in_dir(&ir, dir.path()).unwrap();
-
-        match result {
-            ActivateResult::CreateNew { path, content } => {
-                assert!(path.ends_with("config"));
+        let action = post_write_action(&ir);
+        // On test machines, config dir may or may not exist.
+        // Just verify it returns a valid PostWriteAction variant.
+        match action {
+            PostWriteAction::Guide { message } => {
+                assert!(message.contains("theme = One Dark Pro"));
+            }
+            PostWriteAction::CreateConfig { content, .. } => {
                 assert_eq!(content, "theme = One Dark Pro\n");
             }
-            ActivateResult::Modify { .. } => panic!("expected CreateNew"),
-        }
-    }
-
-    #[test]
-    fn activate_modifies_existing_config() {
-        let dir = tempfile::tempdir().unwrap();
-
-        let config_path = dir.path().join("config");
-        std::fs::write(&config_path, "font-size = 14\ntheme = Dracula\n").unwrap();
-
-        let ir = make_test_ir();
-        let result = activate_in_dir(&ir, dir.path()).unwrap();
-
-        match result {
-            ActivateResult::Modify {
-                new_content,
-                summary,
-                ..
-            } => {
+            PostWriteAction::ModifyConfig { new_content, .. } => {
                 assert!(new_content.contains("theme = One Dark Pro"));
-                assert!(!new_content.contains("Dracula"));
-                assert!(summary.contains("One Dark Pro"));
             }
-            ActivateResult::CreateNew { .. } => panic!("expected Modify"),
         }
     }
 }

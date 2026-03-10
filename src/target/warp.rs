@@ -1,5 +1,6 @@
 use crate::ir::{ThemeIR, ThemeType};
-use crate::store::{atomic_write, theme_slug};
+use crate::store::{atomic_write, chromaport_themes_dir, theme_slug};
+use crate::target::{LinkResult, PostWriteAction};
 use anyhow::{Context, Result};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -11,9 +12,7 @@ pub fn detect() -> bool {
 }
 
 pub fn write(ir: &ThemeIR) -> Result<PathBuf> {
-    let themes_dir = dirs::home_dir()
-        .context("cannot determine home directory")?
-        .join(".warp/themes");
+    let themes_dir = chromaport_themes_dir("warp").context("cannot determine home directory")?;
 
     std::fs::create_dir_all(&themes_dir)
         .with_context(|| format!("cannot create {}", themes_dir.display()))?;
@@ -63,12 +62,43 @@ pub fn write(ir: &ThemeIR) -> Result<PathBuf> {
     Ok(path)
 }
 
-pub fn guide(_ir: &ThemeIR, written_path: &Path) -> String {
-    format!(
-        "  Theme written to {}.\n  \
-         Open Warp -> Settings -> Appearance -> Themes to select it.",
-        written_path.display()
-    )
+pub fn existing_theme_path(ir: &ThemeIR) -> Option<PathBuf> {
+    let themes_dir = chromaport_themes_dir("warp")?;
+    let slug = theme_slug(&ir.name);
+    let path = themes_dir.join(format!("{slug}.yaml"));
+    path.exists().then_some(path)
+}
+
+/// Symlink 대상 경로
+pub fn link_path(ir: &ThemeIR) -> Option<PathBuf> {
+    let slug = theme_slug(&ir.name);
+    dirs::home_dir().map(|h| h.join(".warp/themes").join(format!("{slug}.yaml")))
+}
+
+pub fn link(ir: &ThemeIR, written_path: &Path) -> LinkResult {
+    let target_path = match link_path(ir) {
+        Some(p) => p,
+        None => return LinkResult::Failed("cannot determine home directory".to_string()),
+    };
+
+    if crate::store::is_regular_file(&target_path) {
+        return LinkResult::Conflict(target_path);
+    }
+
+    match crate::store::create_symlink(written_path, &target_path, false) {
+        Ok(()) => LinkResult::Linked(target_path),
+        Err(e) => LinkResult::Failed(e.to_string()),
+    }
+}
+
+pub fn post_write_action(written_path: &Path) -> PostWriteAction {
+    PostWriteAction::Guide {
+        message: format!(
+            "  Theme written to {}.\n  \
+             Open Warp \u{2192} Settings \u{2192} Appearance \u{2192} Themes to select it.",
+            written_path.display()
+        ),
+    }
 }
 
 #[derive(Serialize)]

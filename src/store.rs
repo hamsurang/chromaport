@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
+use std::fs;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tempfile::NamedTempFile;
 
 /// Atomically write `contents` to `target` using a temp file + rename.
@@ -106,6 +107,72 @@ pub fn theme_slug(name: &str) -> String {
     } else {
         result[..result.len().min(MAX_SLUG_LENGTH)].to_string()
     }
+}
+
+/// ~/.chromaport/themes/{target}/ 경로 반환
+pub fn chromaport_themes_dir(target: &str) -> Option<PathBuf> {
+    dirs::home_dir().map(|h| h.join(".chromaport").join("themes").join(target))
+}
+
+/// 일반 파일(symlink 아님) 존재 여부
+pub fn is_regular_file(path: &Path) -> bool {
+    fs::symlink_metadata(path)
+        .map(|m| m.file_type().is_file())
+        .unwrap_or(false)
+}
+
+/// Symlink 생성. 기존 symlink/broken symlink은 atomic replacement.
+/// 일반 파일이 있고 force=false면 Err 반환 (호출자가 프롬프트 후 force로 재호출).
+#[cfg(unix)]
+pub fn create_symlink(source: &Path, link_path: &Path, force: bool) -> anyhow::Result<()> {
+    // 부모 디렉토리 보장
+    if let Some(parent) = link_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    match fs::symlink_metadata(link_path) {
+        Ok(meta) if meta.file_type().is_symlink() => {
+            // 기존/broken symlink → atomic replacement
+            atomic_symlink(source, link_path)?;
+        }
+        Ok(_meta) => {
+            // 일반 파일 존재
+            if force {
+                // atomic: temp symlink + rename (replaces any existing entry)
+                atomic_symlink(source, link_path)?;
+            } else {
+                anyhow::bail!("regular file exists at {}", link_path.display());
+            }
+        }
+        Err(_) => {
+            // 아무것도 없음 → 새로 생성
+            std::os::unix::fs::symlink(source, link_path)?;
+        }
+    }
+    Ok(())
+}
+
+/// Stub for non-Unix platforms.
+#[cfg(not(unix))]
+pub fn create_symlink(_source: &Path, _link_path: &Path, _force: bool) -> anyhow::Result<()> {
+    anyhow::bail!("symlinks are not supported on this platform")
+}
+
+/// Atomic symlink replacement (temp + rename)
+#[cfg(unix)]
+fn atomic_symlink(target: &Path, link_path: &Path) -> std::io::Result<()> {
+    use std::os::unix::fs::symlink;
+
+    let dir = link_path.parent().ok_or_else(|| {
+        std::io::Error::new(std::io::ErrorKind::InvalidInput, "no parent directory")
+    })?;
+    let temp = dir.join(format!(".chromaport_tmp_{}", std::process::id()));
+    symlink(target, &temp)?;
+    if let Err(e) = fs::rename(&temp, link_path) {
+        let _ = fs::remove_file(&temp);
+        return Err(e);
+    }
+    Ok(())
 }
 
 #[cfg(test)]
