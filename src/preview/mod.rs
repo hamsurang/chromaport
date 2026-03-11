@@ -1,6 +1,7 @@
 mod app;
 pub(crate) mod apply_preview;
-mod ui;
+pub(crate) mod color_picker;
+pub(crate) mod ui;
 
 use crate::cli::Target;
 use crate::reader::{ThemeEntry, ThemeReader};
@@ -24,7 +25,7 @@ use std::io;
 pub(crate) struct TerminalGuard;
 
 impl TerminalGuard {
-    fn new() -> Result<Self> {
+    pub(crate) fn new() -> Result<Self> {
         // Defensive: reset terminal state before entering raw mode.
         // inquire uses crossterm 0.25 while ratatui uses 0.28; both modify the
         // same termios flags. This call clears any stale raw-mode state left by

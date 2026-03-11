@@ -34,6 +34,8 @@ pub enum Command {
     },
     /// Apply a saved theme to additional targets
     Apply,
+    /// Create a custom theme from scratch
+    Create,
     /// Manage preset themes
     Presets {
         #[command(subcommand)]

@@ -2,7 +2,9 @@
 
 mod apply;
 mod cli;
+mod color;
 mod converter;
+mod create;
 mod interactive;
 mod ir;
 mod presets;
@@ -34,6 +36,7 @@ fn run() -> Result<()> {
         match cmd {
             Command::Update { yes } => return update::run_update(*yes),
             Command::Apply => return apply::run(),
+            Command::Create => return create::run_create(),
             Command::Presets { action } => match action {
                 PresetsAction::List => return presets::run_list(),
                 PresetsAction::Install => return presets::run_install(),
