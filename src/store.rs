@@ -1,3 +1,4 @@
+use crate::ir::ThemeIR;
 use anyhow::{Context, Result};
 use std::fs;
 use std::io::Write;
@@ -173,6 +174,50 @@ fn atomic_symlink(target: &Path, link_path: &Path) -> std::io::Result<()> {
         return Err(e);
     }
     Ok(())
+}
+
+/// ~/chromaport/themes/ 루트 경로 (target 하위 아님)
+fn chromaport_themes_dir_root() -> Option<PathBuf> {
+    dirs::home_dir().map(|h| h.join("chromaport").join("themes"))
+}
+
+/// ThemeIR을 JSON으로 ~/chromaport/themes/{slug}.json에 저장
+pub fn save_ir(ir: &ThemeIR) -> Result<PathBuf> {
+    let dir = chromaport_themes_dir_root()
+        .ok_or_else(|| anyhow::anyhow!("Cannot determine home directory"))?;
+    fs::create_dir_all(&dir)?;
+    let slug = theme_slug(&ir.name);
+    let path = dir.join(format!("{slug}.json"));
+    let json = serde_json::to_string_pretty(ir)?;
+    atomic_write(&path, json.as_bytes())?;
+    Ok(path)
+}
+
+/// JSON 파일에서 ThemeIR 역직렬화
+pub fn load_ir(path: &Path) -> Result<ThemeIR> {
+    let contents =
+        fs::read_to_string(path).with_context(|| format!("cannot read {}", path.display()))?;
+    let ir: ThemeIR = serde_json::from_str(&contents)
+        .with_context(|| format!("invalid IR: {}", path.display()))?;
+    Ok(ir)
+}
+
+/// ~/chromaport/themes/*.json (루트만, 재귀 아님) 목록
+pub fn list_ir_files() -> Result<Vec<PathBuf>> {
+    let dir = match chromaport_themes_dir_root() {
+        Some(d) => d,
+        None => return Ok(vec![]),
+    };
+    if !dir.exists() {
+        return Ok(vec![]);
+    }
+    let mut files: Vec<PathBuf> = fs::read_dir(&dir)?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|ext| ext == "json") && p.is_file())
+        .collect();
+    files.sort();
+    Ok(files)
 }
 
 #[cfg(test)]

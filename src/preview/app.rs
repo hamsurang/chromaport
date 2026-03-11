@@ -2,7 +2,8 @@ use crate::cli::Target;
 use crate::converter;
 use crate::ir::ThemeIR;
 use crate::reader::{ThemeEntry, ThemeReader};
-use std::collections::HashMap;
+use crate::store;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 pub struct PreviewApp<'a> {
@@ -14,6 +15,7 @@ pub struct PreviewApp<'a> {
     filter: String,
     filtered_indices: Vec<usize>,
     ir_cache: HashMap<PathBuf, Result<ThemeIR, String>>,
+    saved_slugs: HashSet<String>,
 }
 
 impl<'a> PreviewApp<'a> {
@@ -22,6 +24,7 @@ impl<'a> PreviewApp<'a> {
         active_id: Option<String>,
         reader: &'a ThemeReader,
         target: &'a Target,
+        saved_slugs: HashSet<String>,
     ) -> Self {
         let filtered_indices: Vec<usize> = (0..themes.len()).collect();
         Self {
@@ -33,6 +36,7 @@ impl<'a> PreviewApp<'a> {
             filter: String::new(),
             filtered_indices,
             ir_cache: HashMap::new(),
+            saved_slugs,
         }
     }
 
@@ -65,6 +69,17 @@ impl<'a> PreviewApp<'a> {
         self.filtered_indices
             .iter()
             .map(|&i| self.all_themes[i].settings_id.clone())
+            .collect()
+    }
+
+    /// Get saved flags for filtered themes (true if IR JSON exists in ~/chromaport/themes/).
+    pub fn filtered_saved_flags(&self) -> Vec<bool> {
+        self.filtered_indices
+            .iter()
+            .map(|&i| {
+                let slug = store::theme_slug(&self.all_themes[i].label);
+                self.saved_slugs.contains(&slug)
+            })
             .collect()
     }
 

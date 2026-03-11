@@ -32,6 +32,8 @@ pub enum Command {
         #[arg(short = 'y', long)]
         yes: bool,
     },
+    /// Apply a saved theme to additional targets
+    Apply,
 }
 
 #[derive(Clone, ValueEnum, Debug, PartialEq)]

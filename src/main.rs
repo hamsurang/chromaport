@@ -1,5 +1,6 @@
 #![recursion_limit = "256"]
 
+mod apply;
 mod cli;
 mod converter;
 mod interactive;
@@ -28,8 +29,11 @@ fn run() -> Result<()> {
     let cli = Cli::parse();
 
     // Handle subcommands
-    if let Some(Command::Update { yes }) = cli.command {
-        return update::run_update(yes);
+    if let Some(ref cmd) = cli.command {
+        match cmd {
+            Command::Update { yes } => return update::run_update(*yes),
+            Command::Apply => return apply::run(),
+        }
     }
 
     // ── 1. Resolve editor ─────────────────────────────────────────────────
@@ -173,6 +177,15 @@ fn run() -> Result<()> {
         selected_target.post_write_action(&ir, &written_path),
         selected_target.display_name(),
     )?;
+
+    // ── 9.5. Save IR (best-effort) ────────────────────────────────────────
+    match store::save_ir(&ir) {
+        Ok(ir_path) => eprintln!("  Saved theme IR to {}", ir_path.display()),
+        Err(e) => eprintln!(
+            "  {}: failed to save theme IR: {e}",
+            console::style("Warning").yellow()
+        ),
+    }
 
     // ── 10. Update notice ─────────────────────────────────────────────────
     if let Some(info) = update::check_for_update() {

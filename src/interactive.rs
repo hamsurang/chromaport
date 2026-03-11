@@ -1,6 +1,6 @@
 use crate::cli::{Editor, Target};
 use anyhow::Result;
-use inquire::{InquireError, Select};
+use inquire::{InquireError, MultiSelect, Select};
 use std::io::IsTerminal;
 use std::path::Path;
 
@@ -91,6 +91,22 @@ pub fn confirm_update(current: &str, latest: &str, method: &str) -> Result<bool>
         .prompt()
         .map_err(handle_inquire_error)?;
     Ok(answer)
+}
+
+/// Let user pick multiple targets via multi-select.
+pub fn select_targets_multi(available: &[Target]) -> Result<Vec<Target>> {
+    let options: Vec<String> = available
+        .iter()
+        .map(|t| t.display_name().to_string())
+        .collect();
+    let selected = MultiSelect::new("Select targets to apply:", options)
+        .prompt()
+        .map_err(handle_inquire_error)?;
+    Ok(available
+        .iter()
+        .filter(|t| selected.contains(&t.display_name().to_string()))
+        .cloned()
+        .collect())
 }
 
 fn handle_inquire_error(e: InquireError) -> anyhow::Error {

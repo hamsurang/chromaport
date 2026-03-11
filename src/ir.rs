@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ThemeType {
     Dark,
     Light,
@@ -175,7 +175,7 @@ mod tests {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnsiPalette {
     pub black: HexColor,
     pub red: HexColor,
@@ -203,7 +203,7 @@ impl AnsiPalette {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnsiColors {
     pub normal: AnsiPalette,
     pub bright: AnsiPalette,
@@ -214,7 +214,7 @@ pub struct AnsiColors {
     pub selection_bg: Option<HexColor>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThemeIR {
     pub id: String,
     pub name: String,

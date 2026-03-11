@@ -232,6 +232,7 @@ pub fn render_theme_list(
     filter: &str,
     active_id: Option<&str>,
     settings_ids: &[String],
+    saved_flags: &[bool],
 ) {
     let title = if filter.is_empty() {
         " Select Theme ".to_string()
@@ -262,10 +263,12 @@ pub fn render_theme_list(
             let is_active = active_id
                 .map(|id| settings_ids.get(i).map(|s| s.as_str()) == Some(id))
                 .unwrap_or(false);
-            let display = if is_active {
-                format!("{label} [active]")
-            } else {
-                label.clone()
+            let is_saved = saved_flags.get(i).copied().unwrap_or(false);
+            let display = match (is_active, is_saved) {
+                (true, true) => format!("{label} [active] (saved)"),
+                (true, false) => format!("{label} [active]"),
+                (false, true) => format!("{label} (saved)"),
+                (false, false) => label.clone(),
             };
             if i == selected {
                 Line::from(Span::styled(
@@ -359,7 +362,7 @@ mod tests {
         let ids = vec!["one-dark".to_string(), "dracula".to_string()];
         terminal
             .draw(|f| {
-                render_theme_list(f, f.area(), &labels, 0, "", Some("one-dark"), &ids);
+                render_theme_list(f, f.area(), &labels, 0, "", Some("one-dark"), &ids, &[]);
             })
             .unwrap();
     }
@@ -370,7 +373,7 @@ mod tests {
         let mut terminal = Terminal::new(backend).unwrap();
         terminal
             .draw(|f| {
-                render_theme_list(f, f.area(), &[], 0, "xyz", None, &[]);
+                render_theme_list(f, f.area(), &[], 0, "xyz", None, &[], &[]);
             })
             .unwrap();
     }
