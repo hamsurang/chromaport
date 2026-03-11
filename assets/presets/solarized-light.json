@@ -1,0 +1,47 @@
+{
+  "id": "solarized-light",
+  "name": "Solarized Light",
+  "theme_type": "Light",
+  "background": "#FDF6E3",
+  "foreground": "#657B83",
+  "accent": "#268BD2",
+  "sidebar_bg": "#EEE8D5",
+  "cursor": "#657B83",
+  "selection_bg": "#EEE8D5",
+  "border": "#DDD6C1",
+  "input_bg": "#EEE8D5",
+  "muted_fg": "#93A1A1",
+  "terminal": {
+    "normal": {
+      "black": "#073642",
+      "red": "#DC322F",
+      "green": "#859900",
+      "yellow": "#B58900",
+      "blue": "#268BD2",
+      "magenta": "#D33682",
+      "cyan": "#2AA198",
+      "white": "#EEE8D5"
+    },
+    "bright": {
+      "black": "#002B36",
+      "red": "#CB4B16",
+      "green": "#586E75",
+      "yellow": "#657B83",
+      "blue": "#839496",
+      "magenta": "#6C71C4",
+      "cyan": "#93A1A1",
+      "white": "#FDF6E3"
+    },
+    "foreground": "#657B83",
+    "background": "#FDF6E3",
+    "cursor": null,
+    "selection_bg": null
+  },
+  "chart_colors": [
+    "#DC322F",
+    "#859900",
+    "#B58900",
+    "#268BD2",
+    "#D33682"
+  ]
+}

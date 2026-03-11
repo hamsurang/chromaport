@@ -1,0 +1,47 @@
+{
+  "id": "material-theme",
+  "name": "Material Theme",
+  "theme_type": "Dark",
+  "background": "#263238",
+  "foreground": "#EEFFFF",
+  "accent": "#89DDFF",
+  "sidebar_bg": "#1E272C",
+  "cursor": "#FFCC00",
+  "selection_bg": "#344046",
+  "border": "#2C3B41",
+  "input_bg": "#1E272C",
+  "muted_fg": "#546E7A",
+  "terminal": {
+    "normal": {
+      "black": "#000000",
+      "red": "#FF5370",
+      "green": "#C3E88D",
+      "yellow": "#FFCB6B",
+      "blue": "#82AAFF",
+      "magenta": "#C792EA",
+      "cyan": "#89DDFF",
+      "white": "#FFFFFF"
+    },
+    "bright": {
+      "black": "#546E7A",
+      "red": "#FF5370",
+      "green": "#C3E88D",
+      "yellow": "#FFCB6B",
+      "blue": "#82AAFF",
+      "magenta": "#C792EA",
+      "cyan": "#89DDFF",
+      "white": "#FFFFFF"
+    },
+    "foreground": "#EEFFFF",
+    "background": "#263238",
+    "cursor": null,
+    "selection_bg": null
+  },
+  "chart_colors": [
+    "#FF5370",
+    "#C3E88D",
+    "#FFCB6B",
+    "#82AAFF",
+    "#C792EA"
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "id": "tokyo-night",
+  "name": "Tokyo Night",
+  "theme_type": "Dark",
+  "background": "#1A1B26",
+  "foreground": "#C0CAF5",
+  "accent": "#7AA2F7",
+  "sidebar_bg": "#16161E",
+  "cursor": "#C0CAF5",
+  "selection_bg": "#283457",
+  "border": "#15161E",
+  "input_bg": "#16161E",
+  "muted_fg": "#565F89",
+  "terminal": {
+    "normal": {
+      "black": "#15161E",
+      "red": "#F7768E",
+      "green": "#9ECE6A",
+      "yellow": "#E0AF68",
+      "blue": "#7AA2F7",
+      "magenta": "#BB9AF7",
+      "cyan": "#7DCFFF",
+      "white": "#A9B1D6"
+    },
+    "bright": {
+      "black": "#414868",
+      "red": "#F7768E",
+      "green": "#9ECE6A",
+      "yellow": "#E0AF68",
+      "blue": "#7AA2F7",
+      "magenta": "#BB9AF7",
+      "cyan": "#7DCFFF",
+      "white": "#C0CAF5"
+    },
+    "foreground": "#C0CAF5",
+    "background": "#1A1B26",
+    "cursor": null,
+    "selection_bg": null
+  },
+  "chart_colors": [
+    "#F7768E",
+    "#9ECE6A",
+    "#E0AF68",
+    "#7AA2F7",
+    "#BB9AF7"
+  ]
+}

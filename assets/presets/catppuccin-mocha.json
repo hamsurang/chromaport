@@ -1,0 +1,47 @@
+{
+  "id": "catppuccin-mocha",
+  "name": "Catppuccin Mocha",
+  "theme_type": "Dark",
+  "background": "#1E1E2E",
+  "foreground": "#CDD6F4",
+  "accent": "#CBA6F7",
+  "sidebar_bg": "#181825",
+  "cursor": "#F5E0DC",
+  "selection_bg": "#45475A",
+  "border": "#313244",
+  "input_bg": "#181825",
+  "muted_fg": "#6C7086",
+  "terminal": {
+    "normal": {
+      "black": "#45475A",
+      "red": "#F38BA8",
+      "green": "#A6E3A1",
+      "yellow": "#F9E2AF",
+      "blue": "#89B4FA",
+      "magenta": "#F5C2E7",
+      "cyan": "#94E2D5",
+      "white": "#BAC2DE"
+    },
+    "bright": {
+      "black": "#585B70",
+      "red": "#F38BA8",
+      "green": "#A6E3A1",
+      "yellow": "#F9E2AF",
+      "blue": "#89B4FA",
+      "magenta": "#F5C2E7",
+      "cyan": "#94E2D5",
+      "white": "#A6ADC8"
+    },
+    "foreground": "#CDD6F4",
+    "background": "#1E1E2E",
+    "cursor": null,
+    "selection_bg": null
+  },
+  "chart_colors": [
+    "#F38BA8",
+    "#A6E3A1",
+    "#F9E2AF",
+    "#89B4FA",
+    "#CBA6F7"
+  ]
+}

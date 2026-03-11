@@ -5,6 +5,7 @@ mod cli;
 mod converter;
 mod interactive;
 mod ir;
+mod presets;
 mod preview;
 mod reader;
 mod store;
@@ -13,7 +14,7 @@ mod update;
 
 use anyhow::Result;
 use clap::Parser;
-use cli::{Cli, Command, Editor, Target};
+use cli::{Cli, Command, Editor, PresetsAction, Target};
 use reader::{detect_editors, ThemeReader};
 use std::time::{SystemTime, UNIX_EPOCH};
 use target::{LinkResult, PostWriteAction};
@@ -33,6 +34,10 @@ fn run() -> Result<()> {
         match cmd {
             Command::Update { yes } => return update::run_update(*yes),
             Command::Apply => return apply::run(),
+            Command::Presets { action } => match action {
+                PresetsAction::List => return presets::run_list(),
+                PresetsAction::Install => return presets::run_install(),
+            },
         }
     }
 
@@ -42,7 +47,8 @@ fn run() -> Result<()> {
     if all_editors.is_empty() {
         anyhow::bail!(
             "No VS Code or Cursor installation found.\n\
-             Expected extensions at ~/.vscode/extensions or ~/.cursor/extensions."
+             Expected extensions at ~/.vscode/extensions or ~/.cursor/extensions.\n\
+             Run `chromaport presets install` to use preset themes instead."
         );
     }
 
