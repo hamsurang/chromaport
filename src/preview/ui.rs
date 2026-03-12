@@ -229,6 +229,7 @@ fn render_code(f: &mut Frame, area: Rect, ir: &ThemeIR, bg: Color) {
 }
 
 /// Render the theme list pane.
+#[allow(clippy::too_many_arguments)]
 pub fn render_theme_list(
     f: &mut Frame,
     area: Rect,

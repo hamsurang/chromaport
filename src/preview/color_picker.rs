@@ -238,6 +238,7 @@ pub fn render_picker(f: &mut Frame, area: Rect, label: &str, picker: &ColorPicke
     f.render_widget(Paragraph::new(help), chunks[7]);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn render_slider(
     f: &mut Frame,
     area: Rect,
