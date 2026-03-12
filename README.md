@@ -67,38 +67,76 @@ $ chromaport
 > Select editor: Cursor
 > Select themes to migrate: One Monokai, Ayu Dark
 > Select target app: Superset
-> Set as active theme? One Monokai
 
 Converting 2 theme(s)...
-  ✔ One Monokai → /Users/you/.superset/app-state.json
-    Active theme set to 'One Monokai'
-  ✔ Ayu Dark → /Users/you/.superset/app-state.json
-    Restart Superset to apply.
+  ✔ One Monokai → ~/.config/chromaport/themes/one-monokai.json
+  ✔ Ayu Dark → ~/.config/chromaport/themes/ayu-dark.json
 ```
 
-### Options
+### Commands
 
 ```
 chromaport [OPTIONS] [COMMAND]
 
 Commands:
-  update    Check for updates and upgrade chromaport
+  update   Check for updates and upgrade chromaport
+  apply    Apply a saved theme to additional targets
+  create   Create a custom theme from scratch
+  presets  Manage preset themes
 
 Options:
-  -e, --editor <EDITOR>    Source editor [possible values: vscode, cursor]
-  -t, --target <TARGET>    Target app [possible values: superset, warp, ghostty]
-  -y, --yes                Non-interactive mode (import active theme, overwrite if exists)
-      --activate           Apply the theme to the target app's config
-  -h, --help               Print help
-  -V, --version            Print version
+  -v, --version          Print version
+  -e, --editor <EDITOR>  Source editor [possible values: vscode, cursor]
+  -t, --target <TARGET>  Target app [possible values: superset, warp, ghostty]
+  -h, --help             Print help
 ```
 
-### Non-interactive
+### Import themes
 
 ```sh
-# Import the active VS Code theme to Superset
-chromaport --editor vscode --target superset --yes
+# Interactive mode — select editor, themes, and target step by step
+chromaport
+
+# Non-interactive — specify editor and target directly
+chromaport --editor vscode --target ghostty
 ```
+
+Theme selection includes a **TUI-based live preview** powered by ratatui, showing a real-time rendering of each theme as you browse. Use arrow keys to navigate and type to filter.
+
+### Apply saved themes
+
+```sh
+chromaport apply
+```
+
+Re-apply a previously imported theme to additional targets. Shows which targets already have the theme applied.
+
+### Create a custom theme
+
+```sh
+chromaport create
+```
+
+Build a theme from scratch using an **interactive color picker**:
+
+1. Pick a background color
+2. Pick a foreground color
+3. Pick an accent color
+4. Preview and confirm
+
+The color picker supports **slider mode** (arrow keys to adjust HSL values, Shift for 5x step) and **hex mode** (press `#` to type a hex code directly). A full palette is automatically derived from your 3 base colors.
+
+### Preset themes
+
+```sh
+# List available presets
+chromaport presets list
+
+# Install presets
+chromaport presets install
+```
+
+Browse and install curated preset themes from the chromaport repository.
 
 ## Supported editors
 
@@ -109,24 +147,26 @@ chromaport --editor vscode --target superset --yes
 
 ## Supported targets
 
-| Target   | How it works                                                    |
-| -------- | --------------------------------------------------------------- |
-| Superset | Writes to `~/.superset/app-state.json` (quit Superset first)    |
-| Warp     | Writes to `~/.warp/themes/*.yaml` (auto-detected while running) |
+| Target   | How it works                                                                      |
+| -------- | --------------------------------------------------------------------------------- |
+| Superset | Writes to `~/.superset/chromaport-themes/` — import via Superset UI              |
+| Warp     | Symlinks to `~/.warp/themes/` — auto-detected while running                      |
+| Ghostty  | Symlinks to `~/.config/ghostty/themes/` — apply via config or reload             |
 
 ## How it works
 
 1. Scans editor extension directories for `package.json` theme contributions
 2. Parses VS Code theme JSON (with JSONC comment stripping and `include` inheritance)
 3. Converts to an intermediate representation (IR)
-4. Writes to the selected target format
+4. Saves to a central theme store (`~/.config/chromaport/themes/`)
+5. Symlinks or writes to the selected target format
 
 ## Development
 
 ```sh
 cargo test
-cargo fmt-check
-cargo lint
+cargo fmt --check
+cargo clippy --all-targets
 ```
 
 ## License
