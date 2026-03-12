@@ -2,8 +2,21 @@ use crate::cli::Target;
 use crate::converter;
 use crate::ir::ThemeIR;
 use crate::reader::{ThemeEntry, ThemeReader};
-use std::collections::HashMap;
+use crate::store;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+
+/// Find theme labels that appear more than once (case-sensitive).
+fn duplicate_labels(themes: &[ThemeEntry]) -> HashSet<String> {
+    let mut seen = HashSet::new();
+    let mut dupes = HashSet::new();
+    for t in themes {
+        if !seen.insert(&t.label) {
+            dupes.insert(t.label.clone());
+        }
+    }
+    dupes
+}
 
 pub struct PreviewApp<'a> {
     all_themes: Vec<ThemeEntry>,
@@ -14,6 +27,7 @@ pub struct PreviewApp<'a> {
     filter: String,
     filtered_indices: Vec<usize>,
     ir_cache: HashMap<PathBuf, Result<ThemeIR, String>>,
+    saved_slugs: HashSet<String>,
 }
 
 impl<'a> PreviewApp<'a> {
@@ -22,6 +36,7 @@ impl<'a> PreviewApp<'a> {
         active_id: Option<String>,
         reader: &'a ThemeReader,
         target: &'a Target,
+        saved_slugs: HashSet<String>,
     ) -> Self {
         let filtered_indices: Vec<usize> = (0..themes.len()).collect();
         Self {
@@ -33,6 +48,7 @@ impl<'a> PreviewApp<'a> {
             filter: String::new(),
             filtered_indices,
             ir_cache: HashMap::new(),
+            saved_slugs,
         }
     }
 
@@ -52,11 +68,19 @@ impl<'a> PreviewApp<'a> {
         self.active_id.as_deref()
     }
 
-    /// Get filtered theme labels.
+    /// Get filtered theme labels (appends extension name for duplicates).
     pub fn filtered_labels(&self) -> Vec<String> {
+        let dupes = duplicate_labels(&self.all_themes);
         self.filtered_indices
             .iter()
-            .map(|&i| self.all_themes[i].label.clone())
+            .map(|&i| {
+                let t = &self.all_themes[i];
+                if dupes.contains(&t.label) {
+                    format!("{} ({})", t.label, t.extension_name)
+                } else {
+                    t.label.clone()
+                }
+            })
             .collect()
     }
 
@@ -65,6 +89,17 @@ impl<'a> PreviewApp<'a> {
         self.filtered_indices
             .iter()
             .map(|&i| self.all_themes[i].settings_id.clone())
+            .collect()
+    }
+
+    /// Get saved flags for filtered themes (true if IR JSON exists in ~/chromaport/themes/).
+    pub fn filtered_saved_flags(&self) -> Vec<bool> {
+        self.filtered_indices
+            .iter()
+            .map(|&i| {
+                let slug = store::theme_slug(&self.all_themes[i].label);
+                self.saved_slugs.contains(&slug)
+            })
             .collect()
     }
 

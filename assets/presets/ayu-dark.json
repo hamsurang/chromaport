@@ -1,0 +1,47 @@
+{
+  "id": "ayu-dark",
+  "name": "Ayu Dark",
+  "theme_type": "Dark",
+  "background": "#0B0E14",
+  "foreground": "#BFBDB6",
+  "accent": "#E6B450",
+  "sidebar_bg": "#0D1017",
+  "cursor": "#E6B450",
+  "selection_bg": "#1B1E26",
+  "border": "#0D1017",
+  "input_bg": "#0D1017",
+  "muted_fg": "#565B66",
+  "terminal": {
+    "normal": {
+      "black": "#01060E",
+      "red": "#EA6C73",
+      "green": "#91B362",
+      "yellow": "#F9AF4F",
+      "blue": "#53BDFA",
+      "magenta": "#FAE994",
+      "cyan": "#90E1C6",
+      "white": "#C7C7C7"
+    },
+    "bright": {
+      "black": "#565B66",
+      "red": "#F07178",
+      "green": "#C2D94C",
+      "yellow": "#FFB454",
+      "blue": "#59C2FF",
+      "magenta": "#FFEE99",
+      "cyan": "#95E6CB",
+      "white": "#FFFFFF"
+    },
+    "foreground": "#BFBDB6",
+    "background": "#0B0E14",
+    "cursor": null,
+    "selection_bg": null
+  },
+  "chart_colors": [
+    "#EA6C73",
+    "#91B362",
+    "#F9AF4F",
+    "#53BDFA",
+    "#FAE994"
+  ]
+}

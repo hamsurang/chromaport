@@ -32,6 +32,23 @@ pub enum Command {
         #[arg(short = 'y', long)]
         yes: bool,
     },
+    /// Apply a saved theme to additional targets
+    Apply,
+    /// Create a custom theme from scratch
+    Create,
+    /// Manage preset themes
+    Presets {
+        #[command(subcommand)]
+        action: PresetsAction,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum PresetsAction {
+    /// List available preset themes
+    List,
+    /// Install preset themes
+    Install,
 }
 
 #[derive(Clone, ValueEnum, Debug, PartialEq)]

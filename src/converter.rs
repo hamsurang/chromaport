@@ -319,6 +319,7 @@ pub fn convert(entry: &ThemeEntry, theme_json: &Value) -> Result<ThemeIR> {
             cursor_accent: None,
             selection_bg: term_selection,
         },
+        created_at: None,
     })
 }
 
@@ -333,6 +334,7 @@ mod tests {
             settings_id: label.to_string(),
             ui_theme: ui_theme.to_string(),
             path: PathBuf::from("/fake/theme.json"),
+            extension_name: "Test Extension".to_string(),
         }
     }
 

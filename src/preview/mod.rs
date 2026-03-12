@@ -1,8 +1,11 @@
 mod app;
-mod ui;
+pub(crate) mod apply_preview;
+pub(crate) mod color_picker;
+pub(crate) mod ui;
 
 use crate::cli::Target;
 use crate::reader::{ThemeEntry, ThemeReader};
+use crate::store;
 use anyhow::Result;
 use app::PreviewApp;
 use crossterm::{
@@ -15,13 +18,14 @@ use ratatui::{
     layout::{Constraint, Direction, Layout},
     Terminal,
 };
+use std::collections::HashSet;
 use std::io;
 
 /// RAII guard for terminal state restoration.
-struct TerminalGuard;
+pub(crate) struct TerminalGuard;
 
 impl TerminalGuard {
-    fn new() -> Result<Self> {
+    pub(crate) fn new() -> Result<Self> {
         // Defensive: reset terminal state before entering raw mode.
         // inquire uses crossterm 0.25 while ratatui uses 0.28; both modify the
         // same termios flags. This call clears any stale raw-mode state left by
@@ -65,7 +69,19 @@ pub fn select_theme_with_preview(
     let backend = CrosstermBackend::new(io::stdout());
     let mut terminal = Terminal::new(backend)?;
 
-    let mut app = PreviewApp::new(sorted, active_id.map(str::to_string), reader, target);
+    let saved_slugs: HashSet<String> = store::list_ir_files()
+        .unwrap_or_default()
+        .iter()
+        .filter_map(|p| p.file_stem()?.to_str().map(|s| s.to_string()))
+        .collect();
+
+    let mut app = PreviewApp::new(
+        sorted,
+        active_id.map(str::to_string),
+        reader,
+        target,
+        saved_slugs,
+    );
 
     loop {
         app.ensure_current_cached();
@@ -85,6 +101,7 @@ pub fn select_theme_with_preview(
 
             let labels = app.filtered_labels();
             let settings_ids = app.filtered_settings_ids();
+            let saved_flags = app.filtered_saved_flags();
 
             ui::render_theme_list(
                 f,
@@ -94,6 +111,7 @@ pub fn select_theme_with_preview(
                 app.filter(),
                 app.active_id(),
                 &settings_ids,
+                &saved_flags,
             );
 
             if let Some(ir) = app.cached_current_ir() {

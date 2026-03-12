@@ -1,7 +1,9 @@
+use crate::ir::ThemeIR;
 use anyhow::{Context, Result};
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::time::SystemTime;
 use tempfile::NamedTempFile;
 
 /// Atomically write `contents` to `target` using a temp file + rename.
@@ -175,6 +177,77 @@ fn atomic_symlink(target: &Path, link_path: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
+/// ~/chromaport/themes/ 루트 경로 (target 하위 아님)
+fn chromaport_themes_dir_root() -> Option<PathBuf> {
+    dirs::home_dir().map(|h| h.join("chromaport").join("themes"))
+}
+
+/// Convert days since Unix epoch to (year, month, day).
+fn days_to_ymd(days: i64) -> (i64, u8, u8) {
+    // Civil calendar algorithm from Howard Hinnant
+    let z = days + 719468;
+    let era = (if z >= 0 { z } else { z - 146096 }) / 146097;
+    let doe = (z - era * 146097) as u64;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let y = yoe as i64 + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = (doy - (153 * mp + 2) / 5 + 1) as u8;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 } as u8;
+    let y = if m <= 2 { y + 1 } else { y };
+    (y, m, d)
+}
+
+/// ThemeIR을 JSON으로 ~/chromaport/themes/{slug}.json에 저장
+pub fn save_ir(ir: &ThemeIR) -> Result<PathBuf> {
+    let dir = chromaport_themes_dir_root()
+        .ok_or_else(|| anyhow::anyhow!("Cannot determine home directory"))?;
+    fs::create_dir_all(&dir)?;
+    let slug = theme_slug(&ir.name);
+    let path = dir.join(format!("{slug}.json"));
+    let mut ir = ir.clone();
+    if ir.created_at.is_none() {
+        let secs = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let days = (secs / 86400) as i64;
+        // Convert days since epoch to Y-M-D
+        let (y, m, d) = days_to_ymd(days);
+        ir.created_at = Some(format!("{y:04}-{m:02}-{d:02}"));
+    }
+    let json = serde_json::to_string_pretty(&ir)?;
+    atomic_write(&path, json.as_bytes())?;
+    Ok(path)
+}
+
+/// JSON 파일에서 ThemeIR 역직렬화
+pub fn load_ir(path: &Path) -> Result<ThemeIR> {
+    let contents =
+        fs::read_to_string(path).with_context(|| format!("cannot read {}", path.display()))?;
+    let ir: ThemeIR = serde_json::from_str(&contents)
+        .with_context(|| format!("invalid IR: {}", path.display()))?;
+    Ok(ir)
+}
+
+/// ~/chromaport/themes/*.json (루트만, 재귀 아님) 목록
+pub fn list_ir_files() -> Result<Vec<PathBuf>> {
+    let dir = match chromaport_themes_dir_root() {
+        Some(d) => d,
+        None => return Ok(vec![]),
+    };
+    if !dir.exists() {
+        return Ok(vec![]);
+    }
+    let mut files: Vec<PathBuf> = fs::read_dir(&dir)?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|ext| ext == "json") && p.is_file())
+        .collect();
+    files.sort();
+    Ok(files)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -293,5 +366,26 @@ mod tests {
 
         let result = resolve_theme_path(dir.path(), "theme.json").unwrap();
         assert!(result.ends_with("theme.json"));
+    }
+
+    #[test]
+    fn test_days_to_ymd_epoch() {
+        assert_eq!(days_to_ymd(0), (1970, 1, 1));
+    }
+
+    #[test]
+    fn test_days_to_ymd_known_dates() {
+        // 2000-01-01 = 10957 days since epoch
+        assert_eq!(days_to_ymd(10957), (2000, 1, 1));
+        // 2024-01-01 = 19723 days since epoch
+        assert_eq!(days_to_ymd(19723), (2024, 1, 1));
+        // 2026-03-13 = 20525 days since epoch
+        assert_eq!(days_to_ymd(20525), (2026, 3, 13));
+    }
+
+    #[test]
+    fn test_days_to_ymd_leap_day() {
+        // 2000-02-29 = 11016 days since epoch
+        assert_eq!(days_to_ymd(11016), (2000, 2, 29));
     }
 }

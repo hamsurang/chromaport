@@ -1,6 +1,6 @@
 use crate::cli::{Editor, Target};
 use anyhow::Result;
-use inquire::{InquireError, Select};
+use inquire::{InquireError, MultiSelect, Select};
 use std::io::IsTerminal;
 use std::path::Path;
 
@@ -91,6 +91,44 @@ pub fn confirm_update(current: &str, latest: &str, method: &str) -> Result<bool>
         .prompt()
         .map_err(handle_inquire_error)?;
     Ok(answer)
+}
+
+/// Let user pick targets, showing "(applied)" marker on already-applied ones.
+pub fn select_targets_with_applied(
+    all_targets: &[Target],
+    applied: &[bool],
+) -> Result<Vec<Target>> {
+    let options: Vec<String> = all_targets
+        .iter()
+        .zip(applied.iter())
+        .map(|(t, &is_applied)| {
+            if is_applied {
+                format!("{} (applied)", t.display_name())
+            } else {
+                t.display_name().to_string()
+            }
+        })
+        .collect();
+
+    // Pre-select unapplied targets by default
+    let defaults: Vec<usize> = applied
+        .iter()
+        .enumerate()
+        .filter(|(_, &a)| !a)
+        .map(|(i, _)| i)
+        .collect();
+
+    let selected = MultiSelect::new("Select targets to apply:", options.clone())
+        .with_default(&defaults)
+        .prompt()
+        .map_err(handle_inquire_error)?;
+
+    Ok(all_targets
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| selected.contains(&options[*i]))
+        .map(|(_, t)| t.clone())
+        .collect())
 }
 
 fn handle_inquire_error(e: InquireError) -> anyhow::Error {

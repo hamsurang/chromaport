@@ -1,0 +1,82 @@
+{
+  "version": 1,
+  "themes": [
+    {
+      "slug": "one-monokai",
+      "name": "One Monokai",
+      "author": "azemoh",
+      "license": "MIT",
+      "source_url": "https://marketplace.visualstudio.com/items?itemName=azemoh.one-monokai"
+    },
+    {
+      "slug": "material-theme",
+      "name": "Material Theme",
+      "author": "Mattia Astorino",
+      "license": "MIT",
+      "source_url": "https://marketplace.visualstudio.com/items?itemName=Equinusocio.vsc-material-theme"
+    },
+    {
+      "slug": "ayu-dark",
+      "name": "Ayu Dark",
+      "author": "teabyii",
+      "license": "MIT",
+      "source_url": "https://marketplace.visualstudio.com/items?itemName=teabyii.ayu"
+    },
+    {
+      "slug": "dracula",
+      "name": "Dracula",
+      "author": "Dracula Theme",
+      "license": "MIT",
+      "source_url": "https://marketplace.visualstudio.com/items?itemName=dracula-theme.theme-dracula"
+    },
+    {
+      "slug": "catppuccin-mocha",
+      "name": "Catppuccin Mocha",
+      "author": "Catppuccin",
+      "license": "MIT",
+      "source_url": "https://marketplace.visualstudio.com/items?itemName=Catppuccin.catppuccin-vsc"
+    },
+    {
+      "slug": "tokyo-night",
+      "name": "Tokyo Night",
+      "author": "enkia",
+      "license": "MIT",
+      "source_url": "https://marketplace.visualstudio.com/items?itemName=enkia.tokyo-night"
+    },
+    {
+      "slug": "solarized-dark",
+      "name": "Solarized Dark",
+      "author": "Ryan Olson",
+      "license": "MIT",
+      "source_url": "https://marketplace.visualstudio.com/items?itemName=ryanolsonx.solarized"
+    },
+    {
+      "slug": "solarized-light",
+      "name": "Solarized Light",
+      "author": "Ryan Olson",
+      "license": "MIT",
+      "source_url": "https://marketplace.visualstudio.com/items?itemName=ryanolsonx.solarized"
+    },
+    {
+      "slug": "gruvbox-dark",
+      "name": "Gruvbox Dark",
+      "author": "jdinhify",
+      "license": "MIT",
+      "source_url": "https://marketplace.visualstudio.com/items?itemName=jdinhlife.gruvbox"
+    },
+    {
+      "slug": "nord",
+      "name": "Nord",
+      "author": "arcticicestudio",
+      "license": "MIT",
+      "source_url": "https://marketplace.visualstudio.com/items?itemName=arcticicestudio.nord-visual-studio-code"
+    },
+    {
+      "slug": "github-dark",
+      "name": "GitHub Dark",
+      "author": "GitHub",
+      "license": "MIT",
+      "source_url": "https://marketplace.visualstudio.com/items?itemName=GitHub.github-vscode-theme"
+    }
+  ]
+}
