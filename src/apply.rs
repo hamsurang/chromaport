@@ -55,13 +55,13 @@ pub fn run() -> Result<()> {
         None => std::process::exit(0),
     };
 
-    // ── 4. Filter to unapplied targets ──────────────────────────────────
-    let unapplied: Vec<Target> = all_targets
-        .into_iter()
-        .filter(|t| t.existing_theme_path(&selected_ir).is_none())
+    // ── 4. Check applied status per target ──────────────────────────────
+    let applied: Vec<bool> = all_targets
+        .iter()
+        .map(|t| t.existing_theme_path(&selected_ir).is_some())
         .collect();
 
-    if unapplied.is_empty() {
+    if applied.iter().all(|&a| a) {
         println!(
             "\n  {} \"{}\" is already applied to all detected targets.",
             console::style("✔").green(),
@@ -70,15 +70,15 @@ pub fn run() -> Result<()> {
         return Ok(());
     }
 
-    // ── 5. Select targets ───────────────────────────────────────────────
-    let selected_targets = if unapplied.len() == 1 {
+    // ── 5. Select targets (with applied markers) ─────────────────────
+    let selected_targets = if all_targets.len() == 1 && !applied[0] {
         println!(
-            "\nTarget: {} (only unapplied target)",
-            unapplied[0].display_name()
+            "\nTarget: {} (only detected target)",
+            all_targets[0].display_name()
         );
-        unapplied
+        all_targets
     } else {
-        let chosen = interactive::select_targets_multi(&unapplied)?;
+        let chosen = interactive::select_targets_with_applied(&all_targets, &applied)?;
         if chosen.is_empty() {
             eprintln!("No targets selected.");
             return Ok(());

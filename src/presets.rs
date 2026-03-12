@@ -1,6 +1,6 @@
 use crate::ir::ThemeIR;
 use crate::store;
-use anyhow::{Context, Result};
+use anyhow::{bail, Result};
 use inquire::InquireError;
 use serde::Deserialize;
 use std::collections::HashSet;
@@ -36,28 +36,39 @@ fn make_agent() -> ureq::Agent {
     config.into()
 }
 
+fn ureq_get(agent: &ureq::Agent, url: &str, resource: &str) -> Result<ureq::Body> {
+    match agent.get(url).call() {
+        Ok(resp) => Ok(resp.into_body()),
+        Err(ureq::Error::StatusCode(404)) => {
+            bail!("{resource} not found. It may not be available yet.")
+        }
+        Err(ureq::Error::StatusCode(code)) => {
+            bail!("Failed to fetch {resource} (HTTP {code}).")
+        }
+        Err(
+            e @ (ureq::Error::Timeout(_)
+            | ureq::Error::HostNotFound
+            | ureq::Error::ConnectionFailed
+            | ureq::Error::Io(_)),
+        ) => {
+            bail!("Network error fetching {resource}: {e}. Check your internet connection.")
+        }
+        Err(e) => bail!("Failed to fetch {resource}: {e}"),
+    }
+}
+
 fn fetch_manifest(agent: &ureq::Agent) -> Result<Vec<PresetEntry>> {
-    let mut response = agent
-        .get(MANIFEST_URL)
-        .call()
-        .context("Failed to fetch preset manifest. Check your internet connection.")?;
-    let manifest: Manifest = response
-        .body_mut()
+    let manifest: Manifest = ureq_get(agent, MANIFEST_URL, "preset catalog")?
         .read_json()
-        .context("Failed to parse preset manifest")?;
+        .map_err(|e| anyhow::anyhow!("Failed to parse preset manifest: {e}"))?;
     Ok(manifest.themes)
 }
 
 fn fetch_theme_ir(agent: &ureq::Agent, slug: &str) -> Result<ThemeIR> {
     let url = format!("{THEME_BASE_URL}/{slug}.json");
-    let mut response = agent
-        .get(&url)
-        .call()
-        .with_context(|| format!("Failed to download theme: {slug}"))?;
-    let ir: ThemeIR = response
-        .body_mut()
+    let ir: ThemeIR = ureq_get(agent, &url, &format!("theme '{slug}'"))?
         .read_json()
-        .with_context(|| format!("Invalid theme data: {slug}"))?;
+        .map_err(|e| anyhow::anyhow!("Invalid theme data for '{slug}': {e}"))?;
     Ok(ir)
 }
 

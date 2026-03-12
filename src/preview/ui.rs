@@ -124,7 +124,12 @@ pub fn render_preview(f: &mut Frame, area: Rect, ir: &ThemeIR, target: &Target) 
         ThemeType::Dark => "Dark",
         ThemeType::Light => "Light",
     };
-    let title = format!(" Preview: {} ({type_label}) ", ir.name);
+    let display_name = if ir.name.is_empty() {
+        "Untitled"
+    } else {
+        &ir.name
+    };
+    let title = format!(" Preview: {display_name} ({type_label}) ");
 
     let block = Block::default()
         .borders(Borders::ALL)

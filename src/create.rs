@@ -115,36 +115,57 @@ pub fn run_create() -> Result<()> {
                     Phase::PickAccent => &mut accent_picker,
                     Phase::Preview => unreachable!(),
                 };
-                match key.code {
-                    KeyCode::Up => picker.move_up(),
-                    KeyCode::Down => picker.move_down(),
-                    KeyCode::Left => picker.adjust(-step),
-                    KeyCode::Right => picker.adjust(step),
-                    KeyCode::Enter => {
-                        phase = match phase {
-                            Phase::PickBg => Phase::PickFg,
-                            Phase::PickFg => Phase::PickAccent,
-                            Phase::PickAccent => {
-                                cached_ir = Some(derive_palette(
-                                    &bg_picker.current_hex(),
-                                    &fg_picker.current_hex(),
-                                    &accent_picker.current_hex(),
-                                    &theme_type,
-                                ));
-                                Phase::Preview
-                            }
-                            Phase::Preview => unreachable!(),
-                        };
+
+                // Hex input mode key handling
+                if picker.is_hex_mode() {
+                    match key.code {
+                        KeyCode::Enter => {
+                            picker.hex_confirm();
+                        }
+                        KeyCode::Esc => {
+                            picker.hex_cancel();
+                        }
+                        KeyCode::Backspace => {
+                            picker.hex_pop();
+                        }
+                        KeyCode::Char(c) if c.is_ascii_hexdigit() => {
+                            picker.hex_push(c);
+                        }
+                        _ => {}
                     }
-                    KeyCode::Esc => {
-                        phase = match phase {
-                            Phase::PickBg => break None,
-                            Phase::PickFg => Phase::PickBg,
-                            Phase::PickAccent => Phase::PickFg,
-                            Phase::Preview => unreachable!(),
-                        };
+                } else {
+                    match key.code {
+                        KeyCode::Up => picker.move_up(),
+                        KeyCode::Down => picker.move_down(),
+                        KeyCode::Left => picker.adjust(-step),
+                        KeyCode::Right => picker.adjust(step),
+                        KeyCode::Char('#') => picker.enter_hex_mode(),
+                        KeyCode::Enter => {
+                            phase = match phase {
+                                Phase::PickBg => Phase::PickFg,
+                                Phase::PickFg => Phase::PickAccent,
+                                Phase::PickAccent => {
+                                    cached_ir = Some(derive_palette(
+                                        &bg_picker.current_hex(),
+                                        &fg_picker.current_hex(),
+                                        &accent_picker.current_hex(),
+                                        &theme_type,
+                                    ));
+                                    Phase::Preview
+                                }
+                                Phase::Preview => unreachable!(),
+                            };
+                        }
+                        KeyCode::Esc => {
+                            phase = match phase {
+                                Phase::PickBg => break None,
+                                Phase::PickFg => Phase::PickBg,
+                                Phase::PickAccent => Phase::PickFg,
+                                Phase::Preview => unreachable!(),
+                            };
+                        }
+                        _ => {}
                     }
-                    _ => {}
                 }
             } else {
                 // Preview phase input

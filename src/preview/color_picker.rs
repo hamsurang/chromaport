@@ -1,4 +1,4 @@
-use crate::color::{hex_from_rgb, hsl_to_rgb};
+use crate::color::{hex_from_rgb, hsl_to_rgb, rgb_to_hsl};
 use crate::ir::HexColor;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -8,16 +8,29 @@ use ratatui::{
     Frame,
 };
 
+#[derive(Clone)]
+pub enum ColorPickerMode {
+    Sliders,
+    HexInput { buffer: String },
+}
+
 pub struct ColorPicker {
     pub h: f64,
     pub s: f64,
     pub l: f64,
     pub active: usize,
+    pub mode: ColorPickerMode,
 }
 
 impl ColorPicker {
     pub fn new(h: f64, s: f64, l: f64) -> Self {
-        Self { h, s, l, active: 0 }
+        Self {
+            h,
+            s,
+            l,
+            active: 0,
+            mode: ColorPickerMode::Sliders,
+        }
     }
 
     pub fn current_rgb(&self) -> (u8, u8, u8) {
@@ -47,6 +60,51 @@ impl ColorPicker {
             _ => {}
         }
     }
+
+    pub fn enter_hex_mode(&mut self) {
+        self.mode = ColorPickerMode::HexInput {
+            buffer: String::new(),
+        };
+    }
+
+    pub fn is_hex_mode(&self) -> bool {
+        matches!(self.mode, ColorPickerMode::HexInput { .. })
+    }
+
+    pub fn hex_push(&mut self, c: char) {
+        if let ColorPickerMode::HexInput { buffer } = &mut self.mode {
+            if buffer.len() < 6 && c.is_ascii_hexdigit() {
+                buffer.push(c.to_ascii_uppercase());
+            }
+        }
+    }
+
+    pub fn hex_pop(&mut self) {
+        if let ColorPickerMode::HexInput { buffer } = &mut self.mode {
+            buffer.pop();
+        }
+    }
+
+    /// Try to confirm hex input. Returns true on success.
+    pub fn hex_confirm(&mut self) -> bool {
+        if let ColorPickerMode::HexInput { buffer } = &self.mode {
+            let hex_str = format!("#{buffer}");
+            if let Ok(hex) = HexColor::parse(&hex_str) {
+                let (r, g, b) = hex.to_rgb();
+                let (h, s, l) = rgb_to_hsl(r, g, b);
+                self.h = h;
+                self.s = s;
+                self.l = l;
+                self.mode = ColorPickerMode::Sliders;
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn hex_cancel(&mut self) {
+        self.mode = ColorPickerMode::Sliders;
+    }
 }
 
 pub fn render_picker(f: &mut Frame, area: Rect, label: &str, picker: &ColorPicker) {
@@ -60,7 +118,7 @@ pub fn render_picker(f: &mut Frame, area: Rect, label: &str, picker: &ColorPicke
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(1), // spacer
-            Constraint::Length(1), // H
+            Constraint::Length(1), // H / hex input
             Constraint::Length(1), // S
             Constraint::Length(1), // L
             Constraint::Length(1), // spacer
@@ -69,6 +127,43 @@ pub fn render_picker(f: &mut Frame, area: Rect, label: &str, picker: &ColorPicke
             Constraint::Length(1), // help
         ])
         .split(inner);
+
+    if let ColorPickerMode::HexInput { buffer } = &picker.mode {
+        let input_line = Line::from(vec![
+            Span::styled("  Hex: #", Style::default().add_modifier(Modifier::BOLD)),
+            Span::styled(
+                buffer.clone(),
+                Style::default().add_modifier(Modifier::UNDERLINED),
+            ),
+            Span::styled(
+                "_".repeat(6_usize.saturating_sub(buffer.len())),
+                Style::default().fg(Color::DarkGray),
+            ),
+        ]);
+        f.render_widget(Paragraph::new(input_line), chunks[1]);
+
+        // Show current preview
+        let (r, g, b) = picker.current_rgb();
+        let preview = Line::from(vec![
+            Span::raw("  "),
+            Span::styled(
+                "\u{2588}\u{2588}\u{2588}\u{2588}",
+                Style::default().fg(Color::Rgb(r, g, b)),
+            ),
+            Span::raw(format!("  current: #{r:02X}{g:02X}{b:02X}")),
+        ]);
+        f.render_widget(Paragraph::new(preview), chunks[5]);
+
+        let help = Line::from(vec![
+            Span::styled(" Enter ", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw("apply  "),
+            Span::styled("Esc ", Style::default().add_modifier(Modifier::BOLD)),
+            Span::raw("cancel  "),
+            Span::raw("Type 6-digit hex"),
+        ]);
+        f.render_widget(Paragraph::new(help), chunks[7]);
+        return;
+    }
 
     render_slider(
         f,
@@ -133,6 +228,8 @@ pub fn render_picker(f: &mut Frame, area: Rect, label: &str, picker: &ColorPicke
             Style::default().add_modifier(Modifier::BOLD),
         ),
         Span::raw("switch  "),
+        Span::styled("# ", Style::default().add_modifier(Modifier::BOLD)),
+        Span::raw("hex input  "),
         Span::styled("Enter ", Style::default().add_modifier(Modifier::BOLD)),
         Span::raw("confirm  "),
         Span::styled("Esc ", Style::default().add_modifier(Modifier::BOLD)),

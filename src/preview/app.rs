@@ -6,6 +6,18 @@ use crate::store;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
+/// Find theme labels that appear more than once (case-sensitive).
+fn duplicate_labels(themes: &[ThemeEntry]) -> HashSet<String> {
+    let mut seen = HashSet::new();
+    let mut dupes = HashSet::new();
+    for t in themes {
+        if !seen.insert(&t.label) {
+            dupes.insert(t.label.clone());
+        }
+    }
+    dupes
+}
+
 pub struct PreviewApp<'a> {
     all_themes: Vec<ThemeEntry>,
     active_id: Option<String>,
@@ -56,11 +68,19 @@ impl<'a> PreviewApp<'a> {
         self.active_id.as_deref()
     }
 
-    /// Get filtered theme labels.
+    /// Get filtered theme labels (appends extension name for duplicates).
     pub fn filtered_labels(&self) -> Vec<String> {
+        let dupes = duplicate_labels(&self.all_themes);
         self.filtered_indices
             .iter()
-            .map(|&i| self.all_themes[i].label.clone())
+            .map(|&i| {
+                let t = &self.all_themes[i];
+                if dupes.contains(&t.label) {
+                    format!("{} ({})", t.label, t.extension_name)
+                } else {
+                    t.label.clone()
+                }
+            })
             .collect()
     }
 

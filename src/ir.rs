@@ -234,6 +234,9 @@ pub struct ThemeIR {
     pub chart_colors: [HexColor; 5],
     // Terminal ANSI
     pub terminal: AnsiColors,
+    /// Storage metadata — set by store::save_ir(), not semantic IR data.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
 }
 
 #[cfg(test)]
@@ -282,6 +285,7 @@ pub(crate) mod test_fixtures {
                 cursor_accent: None,
                 selection_bg: Some(hex("#264F78")),
             },
+            created_at: None,
         }
     }
 }

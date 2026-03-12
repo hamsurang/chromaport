@@ -14,6 +14,8 @@ pub struct ThemeEntry {
     pub ui_theme: String,
     /// Absolute path to the theme JSON file
     pub path: PathBuf,
+    /// Extension display name (from package.json displayName or name)
+    pub extension_name: String,
 }
 
 pub struct ThemeReader {
@@ -94,6 +96,12 @@ fn parse_extension_themes(ext_dir: &Path) -> Result<Vec<ThemeEntry>> {
         Err(_) => return Ok(vec![]),
     };
 
+    let extension_name = pkg["displayName"]
+        .as_str()
+        .or_else(|| pkg["name"].as_str())
+        .unwrap_or("Unknown")
+        .to_string();
+
     let themes = match pkg["contributes"]["themes"].as_array() {
         Some(t) => t,
         None => return Ok(vec![]),
@@ -119,6 +127,7 @@ fn parse_extension_themes(ext_dir: &Path) -> Result<Vec<ThemeEntry>> {
                 settings_id,
                 ui_theme,
                 path,
+                extension_name: extension_name.clone(),
             }),
             Err(_) => continue, // skip invalid paths silently
         }

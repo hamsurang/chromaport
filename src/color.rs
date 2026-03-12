@@ -305,6 +305,7 @@ pub fn derive_palette(
             cursor_accent: None,
             selection_bg: None,
         },
+        created_at: None,
     }
 }
 
