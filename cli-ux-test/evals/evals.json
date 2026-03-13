@@ -1,0 +1,46 @@
+{
+  "skill_name": "cli-ux-test",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "chromaport의 CLI UX를 전체적으로 점검해줘. 실제로 명령어들을 실행해보고 사용성 개선점을 리포트로 만들어줘.",
+      "expected_output": "Build → Discover → Test → Report → Advisory → Summary 파이프라인을 실행하여, 카테고리별 findings와 심각도 분류가 포함된 마크다운 리포트를 생성",
+      "files": [],
+      "expectations": [
+        "cargo build --release를 실행하여 바이너리를 빌드했다",
+        "CLI 표면적을 매핑했다 (--help, --version, 서브커맨드 help 실행)",
+        "테스트 시나리오를 최소 4개 카테고리(help, args, output, edge cases)로 분류했다",
+        "실제 CLI 명령을 실행하고 stdout/stderr/exit code를 캡처했다",
+        "각 finding에 심각도(Critical/Major/Minor/Enhancement)를 부여했다",
+        "마크다운 리포트 파일(cli-ux-report.md)이 생성되었다",
+        "개선 제안에 구체적 소스 코드 위치나 변경 방법이 포함되어 있다"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "chromaport가 에러 상황에서 사용자에게 충분한 안내를 하는지 테스트해줘. --editor invalid 같은 잘못된 입력이나, 네트워크 없는 상황, 빈 상태에서의 동작을 중점적으로 봐줘.",
+      "expected_output": "에러 핸들링과 edge case 카테고리에 집중한 테스트를 실행하고, 에러 메시지 품질과 복구 가능성을 평가한 리포트 생성",
+      "files": [],
+      "expectations": [
+        "잘못된 --editor/--target 값으로 실행하여 에러 메시지를 테스트했다",
+        "비-TTY 환경(파이프 입력)에서의 동작을 테스트했다",
+        "종료 코드를 확인하고 정확성을 평가했다",
+        "에러 메시지의 what/why/how-to-fix 요소를 분석했다",
+        "CLI UX 원칙(clig.dev 등)에 기반한 분석이 포함되어 있다"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "이 CLI 도구의 UX를 clig.dev 기준으로 감사(audit)해주고, 다른 잘 설계된 CLI 도구(ripgrep, gh 등)와 비교해서 어떤 점을 개선하면 좋을지 알려줘.",
+      "expected_output": "clig.dev 원칙 준수 매트릭스와 함께, 벤치마크 CLI 도구들과의 비교 분석이 포함된 advisory 리포트 생성",
+      "files": [],
+      "expectations": [
+        "원칙별 준수 여부 매트릭스가 포함되어 있다",
+        "다른 CLI 도구(ripgrep, gh, docker 등)와 구체적으로 비교했다",
+        "impact x effort 우선순위가 포함된 개선 제안이 있다",
+        "즉시 적용 가능한 Quick Win 항목이 식별되었다",
+        "도구의 강점(잘 된 부분)이 명시적으로 언급되어 있다"
+      ]
+    }
+  ]
+}
