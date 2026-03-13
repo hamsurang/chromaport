@@ -1,4 +1,5 @@
 pub mod ghostty;
+pub mod obsidian;
 pub mod opencode;
 pub mod superset;
 pub mod warp;
@@ -34,6 +35,11 @@ pub enum PostWriteAction {
     },
     /// config 파일이 없어서 새로 생성
     CreateConfig { path: PathBuf, content: String },
+    /// 테마 디렉토리를 vault에 복사 (Obsidian)
+    CopyToVault {
+        source_dir: PathBuf,
+        theme_name: String,
+    },
 }
 
 impl Target {
@@ -43,6 +49,7 @@ impl Target {
             Target::Warp => warp::detect(),
             Target::Ghostty => ghostty::detect(),
             Target::Opencode => opencode::detect(),
+            Target::Obsidian => obsidian::detect(),
         }
     }
 
@@ -52,6 +59,7 @@ impl Target {
             Target::Warp => warp::write(ir),
             Target::Ghostty => ghostty::write(ir),
             Target::Opencode => opencode::write(ir),
+            Target::Obsidian => obsidian::write(ir),
         }
     }
 
@@ -62,6 +70,7 @@ impl Target {
             Target::Warp => warp::existing_theme_path(ir),
             Target::Ghostty => ghostty::existing_theme_path(ir),
             Target::Opencode => opencode::existing_theme_path(ir),
+            Target::Obsidian => obsidian::existing_theme_path(ir),
         }
     }
 
@@ -72,6 +81,7 @@ impl Target {
             Target::Warp => warp::link(ir, written_path),
             Target::Ghostty => ghostty::link(ir, written_path),
             Target::Opencode => opencode::link(ir, written_path),
+            Target::Obsidian => obsidian::link(),
         }
     }
 
@@ -82,6 +92,7 @@ impl Target {
             Target::Warp => warp::post_write_action(written_path),
             Target::Ghostty => ghostty::post_write_action(ir),
             Target::Opencode => opencode::post_write_action(ir, written_path),
+            Target::Obsidian => obsidian::post_write_action(ir, written_path),
         }
     }
 
@@ -91,15 +102,17 @@ impl Target {
             Target::Warp => "Warp",
             Target::Ghostty => "Ghostty",
             Target::Opencode => "OpenCode",
+            Target::Obsidian => "Obsidian",
         }
     }
 
-    pub fn all() -> [Target; 4] {
+    pub fn all() -> [Target; 5] {
         [
             Target::Superset,
             Target::Warp,
             Target::Ghostty,
             Target::Opencode,
+            Target::Obsidian,
         ]
     }
 }

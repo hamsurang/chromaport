@@ -352,6 +352,9 @@ mod tests {
             PostWriteAction::ModifyConfig { new_content, .. } => {
                 assert!(new_content.contains("theme = One Dark Pro"));
             }
+            PostWriteAction::CopyToVault { .. } => {
+                panic!("ghostty should not return CopyToVault");
+            }
         }
     }
 }

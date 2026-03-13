@@ -123,7 +123,7 @@ fn run() -> Result<()> {
     } else if available_targets.is_empty() {
         anyhow::bail!(
             "No supported target apps detected.\n\
-             Install Superset (~/.superset), Warp (~/.warp), Ghostty (~/.config/ghostty), or OpenCode (~/.config/opencode) first."
+             Install Superset (~/.superset), Warp (~/.warp), Ghostty (~/.config/ghostty), OpenCode (~/.config/opencode), or Obsidian first."
         );
     } else if available_targets.len() == 1 || !interactive::is_tty() {
         available_targets[0].clone()
@@ -186,7 +186,7 @@ fn run_opencode_import(cli: &Cli) -> Result<()> {
     } else if available_targets.is_empty() {
         anyhow::bail!(
             "No supported target apps detected.\n\
-             Install Superset, Warp, Ghostty, or OpenCode first."
+             Install Superset, Warp, Ghostty, OpenCode, or Obsidian first."
         );
     } else if available_targets.len() == 1 || !interactive::is_tty() {
         available_targets[0].clone()
@@ -326,6 +326,37 @@ fn handle_post_write_action(action: PostWriteAction, target_name: &str) -> Resul
             } else {
                 eprintln!("\n{}", decline_guide);
             }
+        }
+        PostWriteAction::CopyToVault {
+            source_dir,
+            theme_name,
+        } => {
+            let vaults = target::obsidian::list_vaults();
+            if vaults.is_empty() {
+                eprintln!("  No Obsidian vaults found. Theme saved to central store.");
+                eprintln!(
+                    "  Copy {} to your vault's .obsidian/themes/ manually.",
+                    source_dir.display()
+                );
+                return Ok(());
+            }
+            let vault = interactive::select_vault(&vaults)?;
+            let dest = vault.join(".obsidian").join("themes").join(
+                source_dir
+                    .file_name()
+                    .ok_or_else(|| anyhow::anyhow!("invalid source dir"))?,
+            );
+            target::obsidian::validate_vault_write_target(&vault, &dest)?;
+            target::obsidian::copy_dir_all(&source_dir, &dest)?;
+            eprintln!(
+                "  {} Copied to {}",
+                console::style("\u{2714}").green(),
+                dest.display()
+            );
+            eprintln!(
+                "  Open Obsidian \u{2192} Settings \u{2192} Appearance \u{2192} Themes to activate \"{}\".",
+                theme_name
+            );
         }
     }
     Ok(())
