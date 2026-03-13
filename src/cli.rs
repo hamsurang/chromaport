@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 #[derive(Parser)]
 #[command(
     version,
-    about = "Migrate VS Code / Cursor themes to Superset, Warp, Ghostty, and more",
+    about = "Migrate VS Code / Cursor / OpenCode themes to Superset, Warp, Ghostty, OpenCode, and more",
     long_about = None,
     disable_version_flag = true
 )]
@@ -55,6 +55,7 @@ pub enum PresetsAction {
 pub enum Editor {
     Vscode,
     Cursor,
+    Opencode,
 }
 
 #[derive(Clone, ValueEnum, Debug, PartialEq)]
@@ -62,4 +63,5 @@ pub enum Target {
     Superset,
     Warp,
     Ghostty,
+    Opencode,
 }

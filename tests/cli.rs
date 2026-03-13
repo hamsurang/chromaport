@@ -13,7 +13,7 @@ fn help_flag_shows_usage() {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "Migrate VS Code / Cursor themes to Superset, Warp, Ghostty",
+            "Migrate VS Code / Cursor / OpenCode themes to Superset, Warp, Ghostty, OpenCode",
         ));
 }
 

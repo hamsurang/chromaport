@@ -242,7 +242,7 @@ pub fn list_ir_files() -> Result<Vec<PathBuf>> {
     let mut files: Vec<PathBuf> = fs::read_dir(&dir)?
         .filter_map(|e| e.ok())
         .map(|e| e.path())
-        .filter(|p| p.extension().is_some_and(|ext| ext == "json") && p.is_file())
+        .filter(|p| p.extension().is_some_and(|ext| ext == "json") && is_regular_file(p))
         .collect();
     files.sort();
     Ok(files)

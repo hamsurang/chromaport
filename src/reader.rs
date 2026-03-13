@@ -356,6 +356,112 @@ pub fn detect_editors() -> Vec<(crate::cli::Editor, PathBuf, PathBuf)> {
     found
 }
 
+// ── OpenCode theme reading ──────────────────────────────────────────
+
+/// OpenCode themes directory (delegates to target::opencode for base path)
+pub fn opencode_themes_dir() -> Option<PathBuf> {
+    crate::target::opencode::opencode_config_dir().map(|d| d.join("themes"))
+}
+
+/// Detect if OpenCode is installed
+pub fn detect_opencode() -> bool {
+    opencode_themes_dir().map(|d| d.exists()).unwrap_or(false)
+}
+
+/// Maximum OpenCode theme file size (1 MB — themes are 1-5 KB)
+const MAX_OPENCODE_THEME_BYTES: u64 = 1024 * 1024;
+/// Maximum number of theme files to scan
+const MAX_OPENCODE_THEME_FILES: usize = 256;
+
+/// Scan OpenCode themes directory and return (name, parsed theme map) pairs.
+pub fn scan_opencode_themes(
+) -> Result<Vec<(String, std::collections::HashMap<String, serde_json::Value>)>> {
+    let themes_dir = match opencode_themes_dir() {
+        Some(d) if d.exists() => d,
+        _ => return Ok(vec![]),
+    };
+
+    let mut entries: Vec<PathBuf> = std::fs::read_dir(&themes_dir)
+        .with_context(|| format!("cannot read {}", themes_dir.display()))?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().is_some_and(|ext| ext == "json"))
+        .collect();
+
+    entries.sort();
+    entries.truncate(MAX_OPENCODE_THEME_FILES);
+
+    let mut result = Vec::new();
+    for path in &entries {
+        // Single symlink_metadata call: rejects symlinks and checks size
+        let meta = match std::fs::symlink_metadata(path) {
+            Ok(m) if m.file_type().is_file() => m,
+            _ => continue,
+        };
+        if meta.len() > MAX_OPENCODE_THEME_BYTES {
+            eprintln!(
+                "warning: skipping {} (too large: {} bytes)",
+                path.display(),
+                meta.len()
+            );
+            continue;
+        }
+
+        let raw = match std::fs::read_to_string(path) {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+
+        let parsed: serde_json::Value = match serde_json::from_str(&raw) {
+            Ok(v) => v,
+            Err(_) => continue,
+        };
+
+        // Extract the theme object; resolve defs references
+        let theme_obj = if let Some(obj) = parsed.get("theme").and_then(|t| t.as_object()) {
+            let defs = parsed
+                .get("defs")
+                .and_then(|d| d.as_object())
+                .cloned()
+                .unwrap_or_default();
+            resolve_defs(obj, &defs)
+        } else {
+            continue;
+        };
+
+        // Derive name from filename (without .json)
+        let name = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("unknown")
+            .to_string();
+
+        result.push((name, theme_obj));
+    }
+
+    Ok(result)
+}
+
+/// Resolve defs references in a theme object.
+/// Values that match a defs key are replaced with the defs value (1-level only).
+fn resolve_defs(
+    theme: &serde_json::Map<String, serde_json::Value>,
+    defs: &serde_json::Map<String, serde_json::Value>,
+) -> std::collections::HashMap<String, serde_json::Value> {
+    theme
+        .iter()
+        .map(|(k, v)| {
+            let resolved = if let Some(s) = v.as_str() {
+                // If the string matches a defs key, use the defs value
+                defs.get(s).cloned().unwrap_or_else(|| v.clone())
+            } else {
+                v.clone()
+            };
+            (k.clone(), resolved)
+        })
+        .collect()
+}
+
 #[derive(Deserialize)]
 pub struct VsCodeThemeJson {
     #[serde(default)]

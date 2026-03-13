@@ -15,6 +15,7 @@ pub fn select_editor(available: &[(Editor, String)]) -> Result<usize> {
         .map(|(e, _)| match e {
             Editor::Vscode => "VS Code".to_string(),
             Editor::Cursor => "Cursor".to_string(),
+            Editor::Opencode => "OpenCode".to_string(),
         })
         .collect();
 
@@ -31,7 +32,7 @@ pub fn select_editor(available: &[(Editor, String)]) -> Result<usize> {
 /// Let user pick the target app.
 pub fn select_target(available: &[Target]) -> Result<Target> {
     if available.is_empty() {
-        anyhow::bail!("No supported target apps detected. Install Superset or Warp first.");
+        anyhow::bail!("No supported target apps detected. Install Superset, Warp, Ghostty, or OpenCode first.");
     }
 
     if available.len() == 1 {
