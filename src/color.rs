@@ -186,7 +186,7 @@ pub fn hex_from_rgb(r: u8, g: u8, b: u8) -> HexColor {
     HexColor::parse(&format!("#{r:02X}{g:02X}{b:02X}")).unwrap()
 }
 
-fn adjust_lightness(rgb: (u8, u8, u8), delta: f64) -> HexColor {
+pub(crate) fn adjust_lightness(rgb: (u8, u8, u8), delta: f64) -> HexColor {
     let (l, c, h) = rgb_to_oklch(rgb.0, rgb.1, rgb.2);
     let (r, g, b) = oklch_to_rgb((l + delta).clamp(0.0, 1.0), c, h);
     hex_from_rgb(r, g, b)

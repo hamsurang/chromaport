@@ -19,7 +19,6 @@ use anyhow::Result;
 use clap::Parser;
 use cli::{Cli, Command, Editor, PresetsAction, Target};
 use reader::{detect_editors, ThemeReader};
-use std::time::{SystemTime, UNIX_EPOCH};
 use target::{LinkResult, PostWriteAction};
 
 fn main() {
@@ -123,7 +122,7 @@ fn run() -> Result<()> {
     } else if available_targets.is_empty() {
         anyhow::bail!(
             "No supported target apps detected.\n\
-             Install Superset (~/.superset), Warp (~/.warp), Ghostty (~/.config/ghostty), or OpenCode (~/.config/opencode) first."
+             Install Superset (~/.superset), Warp (~/.warp), Ghostty (~/.config/ghostty), OpenCode (~/.config/opencode), or Obsidian first."
         );
     } else if available_targets.len() == 1 || !interactive::is_tty() {
         available_targets[0].clone()
@@ -186,7 +185,7 @@ fn run_opencode_import(cli: &Cli) -> Result<()> {
     } else if available_targets.is_empty() {
         anyhow::bail!(
             "No supported target apps detected.\n\
-             Install Superset, Warp, Ghostty, or OpenCode first."
+             Install Superset, Warp, Ghostty, OpenCode, or Obsidian first."
         );
     } else if available_targets.len() == 1 || !interactive::is_tty() {
         available_targets[0].clone()
@@ -286,47 +285,5 @@ fn write_link_and_save(target: &Target, ir: &ir::ThemeIR) -> Result<()> {
 }
 
 fn handle_post_write_action(action: PostWriteAction, target_name: &str) -> Result<()> {
-    match action {
-        PostWriteAction::Guide { message } => {
-            eprintln!("\n{}", message);
-        }
-        PostWriteAction::CreateConfig { path, content } => {
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            store::atomic_write(&path, content.as_bytes())?;
-            eprintln!("  \u{2714} Created {}", path.display());
-        }
-        PostWriteAction::ModifyConfig {
-            config_path,
-            old_content,
-            new_content,
-            summary,
-            decline_guide,
-            success_hint,
-        } => {
-            eprintln!("\n  {}", summary);
-            target::print_config_diff(&old_content, &new_content, &config_path);
-
-            if interactive::is_tty() && interactive::confirm_apply_config(target_name)? {
-                // Backup with timestamp
-                let timestamp = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs();
-                let backup = config_path.with_file_name(format!("config.bak.{}", timestamp));
-                std::fs::copy(&config_path, &backup)?;
-                eprintln!("  \u{2714} Backed up \u{2192} {}", backup.display());
-
-                store::atomic_write(&config_path, new_content.as_bytes())?;
-                eprintln!("  \u{2714} Updated config");
-                if let Some(hint) = success_hint {
-                    eprintln!("  {}", hint);
-                }
-            } else {
-                eprintln!("\n{}", decline_guide);
-            }
-        }
-    }
-    Ok(())
+    target::handle_post_write_action(action, target_name)
 }

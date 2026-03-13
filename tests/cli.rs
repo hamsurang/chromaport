@@ -13,8 +13,8 @@ fn help_flag_shows_usage() {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-            "Migrate VS Code / Cursor / OpenCode themes to Superset, Warp, Ghostty, OpenCode",
-        ));
+        "Migrate VS Code / Cursor / OpenCode themes to Superset, Warp, Ghostty, OpenCode, Obsidian",
+    ));
 }
 
 #[test]
@@ -77,6 +77,20 @@ fn ghostty_target_accepted() {
     assert!(
         !combined.contains("invalid value"),
         "ghostty should be a valid target: {combined}"
+    );
+}
+
+#[test]
+fn obsidian_target_accepted() {
+    let assert = cmd().args(["--target", "obsidian"]).assert();
+    let output = assert.get_output().clone();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let combined = format!("{stdout}{stderr}");
+
+    assert!(
+        !combined.contains("invalid value"),
+        "obsidian should be a valid target: {combined}"
     );
 }
 

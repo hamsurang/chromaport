@@ -32,7 +32,7 @@ pub fn select_editor(available: &[(Editor, String)]) -> Result<usize> {
 /// Let user pick the target app.
 pub fn select_target(available: &[Target]) -> Result<Target> {
     if available.is_empty() {
-        anyhow::bail!("No supported target apps detected. Install Superset, Warp, Ghostty, or OpenCode first.");
+        anyhow::bail!("No supported target apps detected. Install Superset, Warp, Ghostty, OpenCode, or Obsidian first.");
     }
 
     if available.len() == 1 {
@@ -130,6 +130,43 @@ pub fn select_targets_with_applied(
         .filter(|(i, _)| selected.contains(&options[*i]))
         .map(|(_, t)| t.clone())
         .collect())
+}
+
+/// Let user pick a vault from detected Obsidian vaults.
+pub fn select_vault(vaults: &[std::path::PathBuf]) -> Result<std::path::PathBuf> {
+    if vaults.is_empty() {
+        anyhow::bail!("No Obsidian vaults found.");
+    }
+
+    if vaults.len() == 1 {
+        let name = vaults[0]
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| vaults[0].display().to_string());
+        println!("  Vault: {} (auto-detected)", name);
+        return Ok(vaults[0].clone());
+    }
+
+    let options: Vec<String> = vaults
+        .iter()
+        .map(|v| {
+            let name = v
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            format!("{} ({})", name, v.display())
+        })
+        .collect();
+
+    let selected = Select::new("Select Obsidian vault:", options.clone())
+        .prompt()
+        .map_err(handle_inquire_error)?;
+
+    let idx = options
+        .iter()
+        .position(|o| o == &selected)
+        .ok_or_else(|| anyhow::anyhow!("selected item not found in options"))?;
+    Ok(vaults[idx].clone())
 }
 
 fn handle_inquire_error(e: InquireError) -> anyhow::Error {
