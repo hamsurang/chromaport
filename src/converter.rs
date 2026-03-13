@@ -1,4 +1,4 @@
-use crate::ir::{AnsiColors, AnsiPalette, HexColor, ThemeIR, ThemeType};
+use crate::ir::{AnsiColors, AnsiPalette, DiffColors, HexColor, SyntaxColors, ThemeIR, ThemeType};
 use crate::reader::{ThemeEntry, VsCodeThemeJson};
 use anyhow::Result;
 use serde_json::Value;
@@ -141,6 +141,128 @@ fn extract_chart_colors(
         .expect("CHART_SCOPES has exactly 5 entries")
 }
 
+/// Syntax scope → SyntaxColors field mapping
+const SYNTAX_SCOPES: &[(&str, &[&str])] = &[
+    ("comment", &["comment", "comment.line", "comment.block"]),
+    ("keyword", &["keyword", "storage.type", "keyword.control"]),
+    (
+        "function",
+        &[
+            "entity.name.function",
+            "support.function",
+            "meta.function-call",
+        ],
+    ),
+    (
+        "variable",
+        &["variable", "variable.other", "variable.parameter"],
+    ),
+    ("string", &["string", "string.quoted"]),
+    ("number", &["constant.numeric", "constant.numeric.integer"]),
+    (
+        "type",
+        &["entity.name.type", "support.type", "storage.type"],
+    ),
+    (
+        "operator",
+        &["keyword.operator", "keyword.operator.assignment"],
+    ),
+    (
+        "punctuation",
+        &["punctuation", "punctuation.definition", "meta.brace"],
+    ),
+];
+
+fn extract_syntax_colors(
+    token_colors: &[crate::reader::TokenColorRule],
+    theme_type: &ThemeType,
+) -> Option<SyntaxColors> {
+    let is_dark = matches!(theme_type, ThemeType::Dark);
+    let mut found: std::collections::HashMap<&str, HexColor> = std::collections::HashMap::new();
+
+    for (field, scopes) in SYNTAX_SCOPES {
+        for rule in token_colors {
+            if let Some(fg) = &rule.settings.foreground {
+                if let Ok(color) = HexColor::parse(fg) {
+                    let rule_scopes = rule.scope.to_scopes();
+                    if rule_scopes
+                        .iter()
+                        .any(|s| scopes.iter().any(|sc| s.starts_with(sc)))
+                    {
+                        found.insert(field, color);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // Only produce SyntaxColors if we found at least 3 fields
+    if found.len() < 3 {
+        return None;
+    }
+
+    let default_fg = if is_dark { "#D4D4D4" } else { "#000000" };
+    let mut get = |key: &str| {
+        found
+            .remove(key)
+            .unwrap_or_else(|| HexColor::parse(default_fg).unwrap())
+    };
+
+    Some(SyntaxColors {
+        comment: get("comment"),
+        keyword: get("keyword"),
+        function: get("function"),
+        variable: get("variable"),
+        string: get("string"),
+        number: get("number"),
+        r#type: get("type"),
+        operator: get("operator"),
+        punctuation: get("punctuation"),
+    })
+}
+
+fn extract_diff_colors(
+    colors: &std::collections::HashMap<String, String>,
+    theme_type: &ThemeType,
+) -> Option<DiffColors> {
+    let is_dark = matches!(theme_type, ThemeType::Dark);
+
+    let added = colors
+        .get("gitDecoration.addedResourceForeground")
+        .or_else(|| colors.get("diffEditor.insertedTextBackground"))
+        .and_then(|v| HexColor::parse(v).ok());
+
+    let removed = colors
+        .get("gitDecoration.deletedResourceForeground")
+        .or_else(|| colors.get("diffEditor.removedTextBackground"))
+        .and_then(|v| HexColor::parse(v).ok());
+
+    // Only produce DiffColors if we found at least added and removed
+    let added = added?;
+    let removed = removed?;
+
+    let context_default = if is_dark { "#858585" } else { "#717171" };
+    let hunk_default = if is_dark { "#61AFEF" } else { "#0451A5" };
+
+    let context = colors
+        .get("gitDecoration.ignoredResourceForeground")
+        .and_then(|v| HexColor::parse(v).ok())
+        .unwrap_or_else(|| HexColor::parse(context_default).unwrap());
+
+    let hunk_header = colors
+        .get("gitDecoration.submoduleResourceForeground")
+        .and_then(|v| HexColor::parse(v).ok())
+        .unwrap_or_else(|| HexColor::parse(hunk_default).unwrap());
+
+    Some(DiffColors {
+        added,
+        removed,
+        context,
+        hunk_header,
+    })
+}
+
 /// Convert a VS Code theme (ThemeEntry + parsed JSON) into the intermediate representation.
 pub fn convert(entry: &ThemeEntry, theme_json: &Value) -> Result<ThemeIR> {
     let theme_type = ThemeType::from_ui_theme(&entry.ui_theme);
@@ -274,6 +396,10 @@ pub fn convert(entry: &ThemeEntry, theme_json: &Value) -> Result<ThemeIR> {
         "ansi_bright_white",
     );
 
+    // Semantic colors (extracted before ThemeIR construction to avoid borrow-after-move)
+    let syntax = extract_syntax_colors(&parsed.token_colors, &theme_type);
+    let diff = extract_diff_colors(colors, &theme_type);
+
     // Generate a slug-based ID from the name
     let id = crate::store::theme_slug(&entry.label);
 
@@ -319,6 +445,8 @@ pub fn convert(entry: &ThemeEntry, theme_json: &Value) -> Result<ThemeIR> {
             cursor_accent: None,
             selection_bg: term_selection,
         },
+        syntax,
+        diff,
         created_at: None,
     })
 }

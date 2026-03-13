@@ -4,6 +4,7 @@ mod apply;
 mod cli;
 mod color;
 mod converter;
+mod converter_opencode;
 mod create;
 mod interactive;
 mod ir;
@@ -44,6 +45,11 @@ fn run() -> Result<()> {
         }
     }
 
+    // ── OpenCode editor: separate flow (no extensions dir) ────────────────
+    if cli.editor == Some(Editor::Opencode) {
+        return run_opencode_import(&cli);
+    }
+
     // ── 1. Resolve editor ─────────────────────────────────────────────────
     let all_editors = detect_editors();
 
@@ -51,7 +57,8 @@ fn run() -> Result<()> {
         anyhow::bail!(
             "No VS Code or Cursor installation found.\n\
              Expected extensions at ~/.vscode/extensions or ~/.cursor/extensions.\n\
-             Run `chromaport presets install` to use preset themes instead."
+             Use `chromaport --editor opencode` for OpenCode themes, or\n\
+             run `chromaport presets install` to use preset themes instead."
         );
     }
 
@@ -65,6 +72,7 @@ fn run() -> Result<()> {
                     match e {
                         Editor::Vscode => "VS Code",
                         Editor::Cursor => "Cursor",
+                        Editor::Opencode => "OpenCode",
                     }
                 )
             })?
@@ -74,6 +82,7 @@ fn run() -> Result<()> {
             match &all_editors[0].0 {
                 Editor::Vscode => "VS Code",
                 Editor::Cursor => "Cursor",
+                Editor::Opencode => "OpenCode",
             }
         );
         all_editors.into_iter().next().unwrap()
@@ -88,6 +97,7 @@ fn run() -> Result<()> {
                     match e {
                         Editor::Vscode => "VS Code".to_string(),
                         Editor::Cursor => "Cursor".to_string(),
+                        Editor::Opencode => "OpenCode".to_string(),
                     },
                 )
             })
@@ -113,7 +123,7 @@ fn run() -> Result<()> {
     } else if available_targets.is_empty() {
         anyhow::bail!(
             "No supported target apps detected.\n\
-             Install Superset (~/.superset), Warp (~/.warp), or Ghostty (~/.config/ghostty) first."
+             Install Superset (~/.superset), Warp (~/.warp), Ghostty (~/.config/ghostty), or OpenCode (~/.config/opencode) first."
         );
     } else if available_targets.len() == 1 || !interactive::is_tty() {
         available_targets[0].clone()
@@ -141,19 +151,95 @@ fn run() -> Result<()> {
     let theme_json = reader.read_theme_json(&selected_entry)?;
     let ir = converter::convert(&selected_entry, &theme_json)?;
 
-    // ── 6. Overwrite check ────────────────────────────────────────────────
-    if let Some(existing) = selected_target.existing_theme_path(&ir) {
+    // ── 6–9. Write, link, post-write, save IR ───────────────────────────
+    write_link_and_save(&selected_target, &ir)?;
+
+    // ── 10. Update notice ─────────────────────────────────────────────────
+    if let Some(info) = update::check_for_update() {
+        update::print_update_notice(&info);
+    }
+
+    Ok(())
+}
+
+/// OpenCode import flow: scan OpenCode themes → select → convert → write to target.
+fn run_opencode_import(cli: &Cli) -> Result<()> {
+    if !reader::detect_opencode() {
+        anyhow::bail!(
+            "OpenCode themes directory not found.\n\
+             Expected at ~/.config/opencode/themes/"
+        );
+    }
+
+    let opencode_themes = reader::scan_opencode_themes()?;
+    if opencode_themes.is_empty() {
+        anyhow::bail!(
+            "No OpenCode themes found.\n\
+             Place .json theme files in ~/.config/opencode/themes/"
+        );
+    }
+
+    // Resolve target
+    let available_targets: Vec<Target> = Target::all().into_iter().filter(|t| t.detect()).collect();
+    let selected_target = if let Some(ref t) = cli.target {
+        t.clone()
+    } else if available_targets.is_empty() {
+        anyhow::bail!(
+            "No supported target apps detected.\n\
+             Install Superset, Warp, Ghostty, or OpenCode first."
+        );
+    } else if available_targets.len() == 1 || !interactive::is_tty() {
+        available_targets[0].clone()
+    } else {
+        interactive::select_target(&available_targets)?
+    };
+
+    // Select theme
+    if !interactive::is_tty() {
+        anyhow::bail!("Not a TTY. chromaport requires an interactive terminal.");
+    }
+
+    let theme_names: Vec<String> = opencode_themes.iter().map(|(n, _)| n.clone()).collect();
+    let selected_name = inquire::Select::new("Select OpenCode theme:", theme_names)
+        .prompt()
+        .map_err(|e| anyhow::anyhow!("Prompt error: {e}"))?;
+
+    let (name, theme_map) = opencode_themes
+        .into_iter()
+        .find(|(n, _)| n == &selected_name)
+        .unwrap();
+
+    // Convert
+    println!("\nConverting theme...");
+    let theme_type = converter_opencode::infer_theme_type(&theme_map);
+    let ir = converter_opencode::convert_opencode(&name, &theme_map, theme_type)?;
+
+    // Write, link, post-write, save IR
+    write_link_and_save(&selected_target, &ir)?;
+
+    Ok(())
+}
+
+/// Shared pipeline: overwrite check → write → link → post-write → save IR.
+fn write_link_and_save(target: &Target, ir: &ir::ThemeIR) -> Result<()> {
+    // Overwrite check
+    if let Some(existing) = target.existing_theme_path(ir) {
         if !interactive::confirm_overwrite(&existing)? {
             eprintln!("  Skipped.");
             return Ok(());
         }
     }
 
-    // ── 7. Write to central store ─────────────────────────────────────────
+    // Write
     println!();
-    let written_path = match selected_target.write(&ir) {
+    let written_path = match target.write(ir) {
         Ok(path) => {
-            println!("  \u{2714} {} \u{2192} {}", ir.name, path.display());
+            println!(
+                "  {} {} \u{2192} {}",
+                console::style("\u{2714}").green(),
+                ir.name,
+                path.display()
+            );
             path
         }
         Err(e) => {
@@ -161,8 +247,8 @@ fn run() -> Result<()> {
         }
     };
 
-    // ── 8. Create symlink ─────────────────────────────────────────────────
-    let link_result = selected_target.link(&ir, &written_path);
+    // Link
+    let link_result = target.link(ir, &written_path);
     match &link_result {
         LinkResult::Linked(p) => {
             eprintln!("  Linked \u{2192} {}", p.display());
@@ -181,24 +267,19 @@ fn run() -> Result<()> {
         LinkResult::NotApplicable => {}
     }
 
-    // ── 9. Post-write action ──────────────────────────────────────────────
+    // Post-write action
     handle_post_write_action(
-        selected_target.post_write_action(&ir, &written_path),
-        selected_target.display_name(),
+        target.post_write_action(ir, &written_path),
+        target.display_name(),
     )?;
 
-    // ── 9.5. Save IR (best-effort) ────────────────────────────────────────
-    match store::save_ir(&ir) {
+    // Save IR (best-effort)
+    match store::save_ir(ir) {
         Ok(ir_path) => eprintln!("  Saved theme IR to {}", ir_path.display()),
         Err(e) => eprintln!(
             "  {}: failed to save theme IR: {e}",
             console::style("Warning").yellow()
         ),
-    }
-
-    // ── 10. Update notice ─────────────────────────────────────────────────
-    if let Some(info) = update::check_for_update() {
-        update::print_update_notice(&info);
     }
 
     Ok(())

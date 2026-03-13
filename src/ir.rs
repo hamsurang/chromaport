@@ -214,6 +214,29 @@ pub struct AnsiColors {
     pub selection_bg: Option<HexColor>,
 }
 
+/// Syntax highlight colors extracted from VS Code tokenColors.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyntaxColors {
+    pub comment: HexColor,
+    pub keyword: HexColor,
+    pub function: HexColor,
+    pub variable: HexColor,
+    pub string: HexColor,
+    pub number: HexColor,
+    pub r#type: HexColor,
+    pub operator: HexColor,
+    pub punctuation: HexColor,
+}
+
+/// Diff/git decoration colors.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiffColors {
+    pub added: HexColor,
+    pub removed: HexColor,
+    pub context: HexColor,
+    pub hunk_header: HexColor,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ThemeIR {
     pub id: String,
@@ -234,6 +257,12 @@ pub struct ThemeIR {
     pub chart_colors: [HexColor; 5],
     // Terminal ANSI
     pub terminal: AnsiColors,
+    /// Syntax highlight colors (optional — populated from VS Code tokenColors or OpenCode themes)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub syntax: Option<SyntaxColors>,
+    /// Diff/git decoration colors (optional)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diff: Option<DiffColors>,
     /// Storage metadata — set by store::save_ir(), not semantic IR data.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub created_at: Option<String>,
@@ -285,6 +314,8 @@ pub(crate) mod test_fixtures {
                 cursor_accent: None,
                 selection_bg: Some(hex("#264F78")),
             },
+            syntax: None,
+            diff: None,
             created_at: None,
         }
     }

@@ -16,7 +16,7 @@ pub fn run() -> Result<()> {
     if ir_files.is_empty() {
         anyhow::bail!(
             "No saved themes found.\n\
-             Run `chromaport` first to import a theme from VS Code / Cursor."
+             Run `chromaport` first to import a theme from VS Code / Cursor / OpenCode."
         );
     }
 
@@ -43,7 +43,7 @@ pub fn run() -> Result<()> {
     if all_targets.is_empty() {
         anyhow::bail!(
             "No supported target apps detected.\n\
-             Install Superset, Warp, or Ghostty first."
+             Install Superset, Warp, Ghostty, or OpenCode first."
         );
     }
 

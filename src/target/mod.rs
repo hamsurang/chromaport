@@ -1,4 +1,5 @@
 pub mod ghostty;
+pub mod opencode;
 pub mod superset;
 pub mod warp;
 
@@ -41,6 +42,7 @@ impl Target {
             Target::Superset => superset::detect(),
             Target::Warp => warp::detect(),
             Target::Ghostty => ghostty::detect(),
+            Target::Opencode => opencode::detect(),
         }
     }
 
@@ -49,6 +51,7 @@ impl Target {
             Target::Superset => superset::write(ir),
             Target::Warp => warp::write(ir),
             Target::Ghostty => ghostty::write(ir),
+            Target::Opencode => opencode::write(ir),
         }
     }
 
@@ -58,15 +61,17 @@ impl Target {
             Target::Superset => superset::existing_theme_path(ir),
             Target::Warp => warp::existing_theme_path(ir),
             Target::Ghostty => ghostty::existing_theme_path(ir),
+            Target::Opencode => opencode::existing_theme_path(ir),
         }
     }
 
-    /// Symlink 생성 (Ghostty/Warp만 해당)
+    /// Symlink 생성 (Ghostty/Warp/OpenCode 해당)
     pub fn link(&self, ir: &ThemeIR, written_path: &Path) -> LinkResult {
         match self {
             Target::Superset => superset::link(),
             Target::Warp => warp::link(ir, written_path),
             Target::Ghostty => ghostty::link(ir, written_path),
+            Target::Opencode => opencode::link(ir, written_path),
         }
     }
 
@@ -76,6 +81,7 @@ impl Target {
             Target::Superset => superset::post_write_action(written_path),
             Target::Warp => warp::post_write_action(written_path),
             Target::Ghostty => ghostty::post_write_action(ir),
+            Target::Opencode => opencode::post_write_action(ir, written_path),
         }
     }
 
@@ -84,11 +90,17 @@ impl Target {
             Target::Superset => "Superset",
             Target::Warp => "Warp",
             Target::Ghostty => "Ghostty",
+            Target::Opencode => "OpenCode",
         }
     }
 
-    pub fn all() -> [Target; 3] {
-        [Target::Superset, Target::Warp, Target::Ghostty]
+    pub fn all() -> [Target; 4] {
+        [
+            Target::Superset,
+            Target::Warp,
+            Target::Ghostty,
+            Target::Opencode,
+        ]
     }
 }
 
