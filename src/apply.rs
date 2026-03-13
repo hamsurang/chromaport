@@ -4,7 +4,6 @@ use crate::preview::apply_preview;
 use crate::store;
 use crate::target::{self, LinkResult, PostWriteAction};
 use anyhow::Result;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn run() -> Result<()> {
     if !interactive::is_tty() {
@@ -142,85 +141,5 @@ pub fn run() -> Result<()> {
 }
 
 fn handle_post_write_action(action: PostWriteAction, target_name: &str) -> Result<()> {
-    match action {
-        PostWriteAction::Guide { message } => {
-            eprintln!("\n{}", message);
-        }
-        PostWriteAction::CreateConfig { path, content } => {
-            if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)?;
-            }
-            store::atomic_write(&path, content.as_bytes())?;
-            eprintln!(
-                "  {} Created {}",
-                console::style("✔").green(),
-                path.display()
-            );
-        }
-        PostWriteAction::ModifyConfig {
-            config_path,
-            old_content,
-            new_content,
-            summary,
-            decline_guide,
-            success_hint,
-        } => {
-            eprintln!("\n  {}", summary);
-            target::print_config_diff(&old_content, &new_content, &config_path);
-
-            if interactive::is_tty() && interactive::confirm_apply_config(target_name)? {
-                let timestamp = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_secs();
-                let backup = config_path.with_file_name(format!("config.bak.{}", timestamp));
-                std::fs::copy(&config_path, &backup)?;
-                eprintln!(
-                    "  {} Backed up → {}",
-                    console::style("✔").green(),
-                    backup.display()
-                );
-
-                store::atomic_write(&config_path, new_content.as_bytes())?;
-                eprintln!("  {} Updated config", console::style("✔").green());
-                if let Some(hint) = success_hint {
-                    eprintln!("  {}", hint);
-                }
-            } else {
-                eprintln!("\n{}", decline_guide);
-            }
-        }
-        PostWriteAction::CopyToVault {
-            source_dir,
-            theme_name,
-        } => {
-            let vaults = target::obsidian::list_vaults();
-            if vaults.is_empty() {
-                eprintln!("  No Obsidian vaults found. Theme saved to central store.");
-                eprintln!(
-                    "  Copy {} to your vault's .obsidian/themes/ manually.",
-                    source_dir.display()
-                );
-                return Ok(());
-            }
-            let vault = interactive::select_vault(&vaults)?;
-            let dest = vault.join(".obsidian").join("themes").join(
-                source_dir
-                    .file_name()
-                    .ok_or_else(|| anyhow::anyhow!("invalid source dir"))?,
-            );
-            target::obsidian::validate_vault_write_target(&vault, &dest)?;
-            target::obsidian::copy_dir_all(&source_dir, &dest)?;
-            eprintln!(
-                "  {} Copied to {}",
-                console::style("✔").green(),
-                dest.display()
-            );
-            eprintln!(
-                "  Open Obsidian → Settings → Appearance → Themes to activate \"{}\".",
-                theme_name
-            );
-        }
-    }
-    Ok(())
+    target::handle_post_write_action(action, target_name)
 }

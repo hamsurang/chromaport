@@ -11,14 +11,17 @@ const MAX_VAULTS: usize = 100;
 // ── Detection ───────────────────────────────────────────────────────
 
 pub fn detect() -> bool {
-    obsidian_json_path()
-        .and_then(|p| {
-            let meta = std::fs::metadata(&p).ok()?;
-            (meta.len() <= MAX_OBSIDIAN_JSON_BYTES).then_some(p)
-        })
-        .and_then(|p| std::fs::read_to_string(&p).ok())
-        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
-        .is_some_and(|v| has_valid_vault(&v))
+    read_obsidian_json().is_some_and(|v| has_valid_vault(&v))
+}
+
+fn read_obsidian_json() -> Option<serde_json::Value> {
+    let p = obsidian_json_path()?;
+    let meta = std::fs::metadata(&p).ok()?;
+    if meta.len() > MAX_OBSIDIAN_JSON_BYTES {
+        return None;
+    }
+    let s = std::fs::read_to_string(&p).ok()?;
+    serde_json::from_str(&s).ok()
 }
 
 fn obsidian_json_path() -> Option<PathBuf> {
@@ -46,13 +49,7 @@ fn has_valid_vault(json: &serde_json::Value) -> bool {
 
 /// Full vault list for orchestrator's CopyToVault handling.
 pub(crate) fn list_vaults() -> Vec<PathBuf> {
-    obsidian_json_path()
-        .and_then(|p| {
-            let meta = std::fs::metadata(&p).ok()?;
-            (meta.len() <= MAX_OBSIDIAN_JSON_BYTES).then_some(p)
-        })
-        .and_then(|p| std::fs::read_to_string(&p).ok())
-        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+    read_obsidian_json()
         .map(|v| list_valid_vaults_inner(&v))
         .unwrap_or_default()
 }
@@ -154,7 +151,8 @@ pub(crate) fn validate_vault_write_target(vault: &Path, target: &Path) -> Result
     if !canonical_parent.starts_with(&canonical_vault) {
         anyhow::bail!("write target escapes vault boundary");
     }
-    Ok(canonical_parent.join(target.file_name().unwrap()))
+    let name = target.file_name().context("target has no file name")?;
+    Ok(canonical_parent.join(name))
 }
 
 /// Copy directory contents (manifest.json + theme.css) to destination.
@@ -162,13 +160,15 @@ pub(crate) fn copy_dir_all(src: &Path, dst: &Path) -> Result<()> {
     std::fs::create_dir_all(dst).with_context(|| format!("cannot create {}", dst.display()))?;
     for entry in std::fs::read_dir(src).with_context(|| format!("cannot read {}", src.display()))? {
         let entry = entry?;
-        let dest_path = dst.join(entry.file_name());
-        if entry.file_type()?.is_file() {
-            std::fs::copy(entry.path(), &dest_path)
-                .with_context(|| format!("cannot copy to {}", dest_path.display()))?;
-            #[cfg(unix)]
-            set_permissions_644(&dest_path)?;
+        let ft = entry.file_type()?;
+        if ft.is_symlink() || !ft.is_file() {
+            continue;
         }
+        let dest_path = dst.join(entry.file_name());
+        std::fs::copy(entry.path(), &dest_path)
+            .with_context(|| format!("cannot copy to {}", dest_path.display()))?;
+        #[cfg(unix)]
+        set_permissions_644(&dest_path)?;
     }
     Ok(())
 }
