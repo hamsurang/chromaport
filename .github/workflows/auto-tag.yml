@@ -1,0 +1,39 @@
+name: Auto Tag
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - Cargo.toml
+
+permissions:
+  contents: write
+
+jobs:
+  auto-tag:
+    name: Create Version Tag
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check version change
+        id: version
+        run: |
+          OLD_VERSION=$(git show HEAD~1:Cargo.toml 2>/dev/null | grep -m 1 '^version' | sed 's/.*"\(.*\)".*/\1/' || echo "")
+          NEW_VERSION=$(grep -m 1 '^version' Cargo.toml | sed 's/.*"\(.*\)".*/\1/')
+          if [ "$OLD_VERSION" != "$NEW_VERSION" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create and push tag
+        if: steps.version.outputs.changed == 'true'
+        run: |
+          TAG="v${{ steps.version.outputs.version }}"
+          git tag "$TAG"
+          git push origin "$TAG" 2>/dev/null || echo "Tag $TAG already exists on remote; skipping."
