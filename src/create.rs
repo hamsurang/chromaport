@@ -27,6 +27,7 @@ enum Phase {
 }
 
 pub fn run_create() -> Result<()> {
+    crate::interactive::require_tty("chromaport create")?;
     // 1. Dark/Light selection
     let options = vec!["Dark", "Light"];
     let theme_type = match inquire::Select::new("Theme type:", options).prompt() {

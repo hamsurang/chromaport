@@ -70,12 +70,11 @@ Run `chromaport` and follow the interactive prompts:
 ```
 $ chromaport
 > Select editor: Cursor
-> Select themes to migrate: One Monokai, Ayu Dark
-> Select target app: Superset
+> Select theme: One Monokai    (with live TUI preview)
+> Select target app: Ghostty
 
-Converting 2 theme(s)...
-  ✔ One Monokai → ~/.config/chromaport/themes/one-monokai.json
-  ✔ Ayu Dark → ~/.config/chromaport/themes/ayu-dark.json
+Converting theme...
+  ✔ One Monokai → ~/chromaport/themes/one-monokai.json
 ```
 
 ### Commands
@@ -91,8 +90,8 @@ Commands:
 
 Options:
   -v, --version          Print version
-  -e, --editor <EDITOR>  Source editor [possible values: vscode, cursor]
-  -t, --target <TARGET>  Target app [possible values: superset, warp, ghostty]
+  -e, --editor <EDITOR>  Source editor [possible values: vscode, cursor, opencode, iterm2]
+  -t, --target <TARGET>  Target app [possible values: superset, warp, ghostty, opencode, obsidian, iterm2]
   -h, --help             Print help
 ```
 
@@ -102,7 +101,7 @@ Options:
 # Interactive mode — select editor, themes, and target step by step
 chromaport
 
-# Non-interactive — specify editor and target directly
+# Skip editor/target selection — specify directly
 chromaport --editor vscode --target ghostty
 ```
 
@@ -145,10 +144,12 @@ Browse and install curated preset themes from the chromaport repository.
 
 ## Supported editors
 
-| Editor  | Path                    |
-| ------- | ----------------------- |
-| VS Code | `~/.vscode/extensions/` |
-| Cursor  | `~/.cursor/extensions/` |
+| Editor   | Path                                                        |
+| -------- | ----------------------------------------------------------- |
+| VS Code  | `~/.vscode/extensions/`                                     |
+| Cursor   | `~/.cursor/extensions/`                                     |
+| OpenCode | `~/.config/opencode/themes/`                                |
+| iTerm2   | `~/Library/Preferences/com.googlecode.iterm2.plist`         |
 
 ## Supported targets
 
@@ -157,13 +158,16 @@ Browse and install curated preset themes from the chromaport repository.
 | Superset | Writes to `~/.superset/chromaport-themes/` — import via Superset UI              |
 | Warp     | Symlinks to `~/.warp/themes/` — auto-detected while running                      |
 | Ghostty  | Symlinks to `~/.config/ghostty/themes/` — apply via config or reload             |
+| OpenCode | Symlinks to `~/.config/opencode/themes/` — auto-detected on restart              |
+| Obsidian | Copies to vault's `.obsidian/themes/` — activate in Settings → Appearance        |
+| iTerm2   | Symlinks to `~/.config/iterm2/themes/` — import via Color Presets                |
 
 ## How it works
 
 1. Scans editor extension directories for `package.json` theme contributions
 2. Parses VS Code theme JSON (with JSONC comment stripping and `include` inheritance)
 3. Converts to an intermediate representation (IR)
-4. Saves to a central theme store (`~/.config/chromaport/themes/`)
+4. Saves to a central theme store (`~/chromaport/themes/`)
 5. Symlinks or writes to the selected target format
 
 ## Development

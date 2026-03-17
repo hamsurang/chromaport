@@ -34,6 +34,18 @@ fn run() -> Result<()> {
 
     // Handle subcommands
     if let Some(ref cmd) = cli.command {
+        if cli.editor.is_some() || cli.target.is_some() {
+            let cmd_name = match cmd {
+                Command::Update { .. } => "update",
+                Command::Apply => "apply",
+                Command::Create => "create",
+                Command::Presets { .. } => "presets",
+            };
+            eprintln!(
+                "Note: --editor/--target options are not used with the '{}' command.",
+                cmd_name
+            );
+        }
         match cmd {
             Command::Update { yes } => return update::run_update(*yes),
             Command::Apply => return apply::run(),
@@ -84,7 +96,7 @@ fn run() -> Result<()> {
                 )
             })?
     } else if all_editors.len() == 1 {
-        println!(
+        eprintln!(
             "Editor: {} (auto-detected)",
             match &all_editors[0].0 {
                 Editor::Vscode => "VS Code",
@@ -141,9 +153,7 @@ fn run() -> Result<()> {
     };
 
     // ── 4. Select theme (single-select with live preview) ─────────────────
-    if !interactive::is_tty() {
-        anyhow::bail!("Not a TTY. chromaport requires an interactive terminal.");
-    }
+    interactive::require_tty("chromaport")?;
 
     let selected_entry = match preview::select_theme_with_preview(
         &all_themes,
@@ -156,7 +166,7 @@ fn run() -> Result<()> {
     };
 
     // ── 5. Convert ────────────────────────────────────────────────────────
-    println!("\nConverting theme...");
+    eprintln!("\nConverting theme...");
     let theme_json = reader.read_theme_json(&selected_entry)?;
     let ir = converter::convert(&selected_entry, &theme_json)?;
 
@@ -204,9 +214,7 @@ fn run_opencode_import(cli: &Cli) -> Result<()> {
     };
 
     // Select theme
-    if !interactive::is_tty() {
-        anyhow::bail!("Not a TTY. chromaport requires an interactive terminal.");
-    }
+    interactive::require_tty("chromaport")?;
 
     let theme_names: Vec<String> = opencode_themes.iter().map(|(n, _)| n.clone()).collect();
     let selected_name = inquire::Select::new("Select OpenCode theme:", theme_names)
@@ -219,7 +227,7 @@ fn run_opencode_import(cli: &Cli) -> Result<()> {
         .unwrap();
 
     // Convert
-    println!("\nConverting theme...");
+    eprintln!("\nConverting theme...");
     let theme_type = converter_opencode::infer_theme_type(&theme_map);
     let ir = converter_opencode::convert_opencode(&name, &theme_map, theme_type)?;
 
@@ -263,9 +271,7 @@ fn run_iterm2_import(cli: &Cli) -> Result<()> {
     };
 
     // Select preset
-    if !interactive::is_tty() {
-        anyhow::bail!("Not a TTY. chromaport requires an interactive terminal.");
-    }
+    interactive::require_tty("chromaport")?;
 
     let preset_names: Vec<String> = presets.iter().map(|(n, _)| n.clone()).collect();
     let selected_name = inquire::Select::new("Select iTerm2 color preset:", preset_names)
@@ -281,7 +287,7 @@ fn run_iterm2_import(cli: &Cli) -> Result<()> {
     let theme_type = interactive::select_theme_type()?;
 
     // Convert
-    println!("\nConverting theme...");
+    eprintln!("\nConverting theme...");
     let ir = converter_iterm2::convert_iterm2(&name, &preset, theme_type)?;
 
     // Write, link, post-write, save IR
@@ -301,10 +307,10 @@ fn write_link_and_save(target: &Target, ir: &ir::ThemeIR) -> Result<()> {
     }
 
     // Write
-    println!();
+    eprintln!();
     let written_path = match target.write(ir) {
         Ok(path) => {
-            println!(
+            eprintln!(
                 "  {} {} \u{2192} {}",
                 console::style("\u{2714}").green(),
                 ir.name,
