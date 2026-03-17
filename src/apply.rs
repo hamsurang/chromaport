@@ -6,9 +6,7 @@ use crate::target::{self, LinkResult, PostWriteAction};
 use anyhow::Result;
 
 pub fn run() -> Result<()> {
-    if !interactive::is_tty() {
-        anyhow::bail!("Not a TTY. chromaport apply requires an interactive terminal.");
-    }
+    interactive::require_tty("chromaport apply")?;
 
     // ── 1. Load saved IRs ───────────────────────────────────────────────
     let ir_files = store::list_ir_files()?;
@@ -71,7 +69,7 @@ pub fn run() -> Result<()> {
 
     // ── 5. Select targets (with applied markers) ─────────────────────
     let selected_targets = if all_targets.len() == 1 && !applied[0] {
-        println!(
+        eprintln!(
             "\nTarget: {} (only detected target)",
             all_targets[0].display_name()
         );
@@ -91,7 +89,7 @@ pub fn run() -> Result<()> {
         // Write
         let written_path = match t.write(&selected_ir) {
             Ok(path) => {
-                println!(
+                eprintln!(
                     "  {} {} → {}",
                     console::style("✔").green(),
                     selected_ir.name,

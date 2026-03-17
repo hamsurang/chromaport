@@ -81,7 +81,7 @@ fn installed_slugs() -> HashSet<String> {
 }
 
 pub fn run_list() -> Result<()> {
-    println!("Fetching preset themes...");
+    eprintln!("Fetching preset themes...");
     let agent = make_agent();
     let presets = fetch_manifest(&agent)?;
     let installed = installed_slugs();
@@ -105,7 +105,8 @@ pub fn run_list() -> Result<()> {
 }
 
 pub fn run_install() -> Result<()> {
-    println!("Fetching preset themes...");
+    crate::interactive::require_tty("chromaport presets install")?;
+    eprintln!("Fetching preset themes...");
     let agent = make_agent();
     let presets = fetch_manifest(&agent)?;
     let installed = installed_slugs();

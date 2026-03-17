@@ -78,12 +78,11 @@ CI 환경과 비대화형 셸에서는 자동으로 비활성화됩니다.
 ```
 $ chromaport
 > Select editor: Cursor
-> Select themes to migrate: One Monokai, Ayu Dark
-> Select target app: Superset
+> Select theme: One Monokai    (TUI 라이브 미리보기)
+> Select target app: Ghostty
 
-Converting 2 theme(s)...
-  ✔ One Monokai → ~/.config/chromaport/themes/one-monokai.json
-  ✔ Ayu Dark → ~/.config/chromaport/themes/ayu-dark.json
+Converting theme...
+  ✔ One Monokai → ~/chromaport/themes/one-monokai.json
 ```
 
 ### 명령어
@@ -99,8 +98,8 @@ Commands:
 
 Options:
   -v, --version          버전 출력
-  -e, --editor <EDITOR>  소스 에디터 [가능한 값: vscode, cursor]
-  -t, --target <TARGET>  대상 앱 [가능한 값: superset, warp, ghostty]
+  -e, --editor <EDITOR>  소스 에디터 [가능한 값: vscode, cursor, opencode, iterm2]
+  -t, --target <TARGET>  대상 앱 [가능한 값: superset, warp, ghostty, opencode, obsidian, iterm2]
   -h, --help             도움말 출력
 ```
 
@@ -110,7 +109,7 @@ Options:
 # 대화형 모드 — 에디터, 테마, 대상을 단계별로 선택
 chromaport
 
-# 비대화형 — 에디터와 대상을 직접 지정
+# 에디터/대상 선택 건너뛰기 — 직접 지정
 chromaport --editor vscode --target ghostty
 ```
 
@@ -155,10 +154,12 @@ chromaport 저장소에서 엄선된 프리셋 테마를 탐색하고 설치할 
 
 ## 지원 에디터
 
-| 에디터  | 경로                    |
-| ------- | ----------------------- |
-| VS Code | `~/.vscode/extensions/` |
-| Cursor  | `~/.cursor/extensions/` |
+| 에디터   | 경로                                                        |
+| -------- | ----------------------------------------------------------- |
+| VS Code  | `~/.vscode/extensions/`                                     |
+| Cursor   | `~/.cursor/extensions/`                                     |
+| OpenCode | `~/.config/opencode/themes/`                                |
+| iTerm2   | `~/Library/Preferences/com.googlecode.iterm2.plist`         |
 
 ## 지원 대상
 
@@ -167,6 +168,9 @@ chromaport 저장소에서 엄선된 프리셋 테마를 탐색하고 설치할 
 | Superset | `~/.superset/chromaport-themes/`에 기록 — Superset UI에서 가져오기               |
 | Warp     | `~/.warp/themes/`에 심볼릭 링크 — 실행 중 자동 감지                              |
 | Ghostty  | `~/.config/ghostty/themes/`에 심볼릭 링크 — 설정 파일 또는 리로드로 적용         |
+| OpenCode | `~/.config/opencode/themes/`에 심볼릭 링크 — 재시작 시 자동 감지                 |
+| Obsidian | 볼트의 `.obsidian/themes/`에 복사 — 설정 → 외관에서 활성화                       |
+| iTerm2   | `~/.config/iterm2/themes/`에 심볼릭 링크 — Color Presets에서 가져오기            |
 
 ---
 
@@ -175,7 +179,7 @@ chromaport 저장소에서 엄선된 프리셋 테마를 탐색하고 설치할 
 1. 에디터 확장 디렉토리에서 `package.json`의 테마 기여(contribution)를 스캔
 2. VS Code 테마 JSON 파싱 (JSONC 주석 제거 및 `include` 상속 처리)
 3. 중간 표현(IR)으로 변환
-4. 중앙 테마 저장소(`~/.config/chromaport/themes/`)에 저장
+4. 중앙 테마 저장소(`~/chromaport/themes/`)에 저장
 5. 선택한 대상 형식으로 심볼릭 링크 또는 기록
 
 ---

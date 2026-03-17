@@ -8,6 +8,18 @@ pub fn is_tty() -> bool {
     std::io::stdin().is_terminal()
 }
 
+/// Guard: bail if not running in an interactive terminal.
+/// `context` is inserted into the message, e.g. "chromaport create" or "chromaport".
+pub fn require_tty(context: &str) -> Result<()> {
+    if is_tty() {
+        return Ok(());
+    }
+    anyhow::bail!(
+        "Not a TTY. {context} requires an interactive terminal.\n\
+         Run this command directly in your terminal."
+    );
+}
+
 /// Let user pick dark or light theme type.
 pub fn select_theme_type() -> Result<crate::ir::ThemeType> {
     let options = vec!["Dark", "Light"];
@@ -51,7 +63,7 @@ pub fn select_target(available: &[Target]) -> Result<Target> {
 
     if available.len() == 1 {
         let t = available[0].clone();
-        println!("Target: {} (auto-detected)", t.display_name());
+        eprintln!("Target: {} (auto-detected)", t.display_name());
         return Ok(t);
     }
 
@@ -186,7 +198,10 @@ pub fn select_vault(vaults: &[std::path::PathBuf]) -> Result<std::path::PathBuf>
 fn handle_inquire_error(e: InquireError) -> anyhow::Error {
     match e {
         InquireError::NotTTY => {
-            anyhow::anyhow!("Not a TTY. chromaport requires an interactive terminal.")
+            anyhow::anyhow!(
+                "Not a TTY. chromaport requires an interactive terminal.\n\
+                 Run this command directly in your terminal."
+            )
         }
         InquireError::OperationCanceled => {
             std::process::exit(0);
