@@ -356,6 +356,52 @@ pub fn detect_editors() -> Vec<(crate::cli::Editor, PathBuf, PathBuf)> {
     found
 }
 
+// ── iTerm2 theme reading ────────────────────────────────────────────
+
+pub fn detect_iterm2() -> Option<std::path::PathBuf> {
+    crate::target::iterm2::iterm2_plist_path()
+}
+
+/// Maximum iTerm2 plist file size (20 MB). The plist crate loads the entire file
+/// into memory eagerly — this guard prevents excessive allocation on pathological inputs.
+const MAX_ITERM2_PLIST_BYTES: u64 = 20 * 1024 * 1024;
+
+pub fn scan_iterm2_presets(
+    plist_path: &std::path::Path,
+) -> Result<Vec<(String, plist::Dictionary)>> {
+    let meta = std::fs::metadata(plist_path)
+        .with_context(|| format!("cannot stat {}", plist_path.display()))?;
+    if meta.len() > MAX_ITERM2_PLIST_BYTES {
+        anyhow::bail!(
+            "iTerm2 plist too large ({:.1} MB, limit {:.0} MB)",
+            meta.len() as f64 / (1024.0 * 1024.0),
+            MAX_ITERM2_PLIST_BYTES as f64 / (1024.0 * 1024.0)
+        );
+    }
+
+    let root = plist::Value::from_file(plist_path)
+        .with_context(|| format!("cannot read iTerm2 plist: {}", plist_path.display()))?;
+
+    let presets = root
+        .as_dictionary()
+        .and_then(|d| d.get("Custom Color Presets"))
+        .and_then(|v| v.as_dictionary());
+    let presets = match presets {
+        Some(p) => p,
+        None => return Ok(vec![]),
+    };
+
+    let mut result: Vec<(String, plist::Dictionary)> = Vec::new();
+    for (name, value) in presets {
+        if let Some(dict) = value.as_dictionary() {
+            result.push((name.clone(), dict.clone()));
+        }
+    }
+    result.sort_by(|(a, _), (b, _)| a.cmp(b));
+
+    Ok(result)
+}
+
 // ── OpenCode theme reading ──────────────────────────────────────────
 
 /// OpenCode themes directory (delegates to target::opencode for base path)

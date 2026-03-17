@@ -1,4 +1,5 @@
 pub mod ghostty;
+pub mod iterm2;
 pub mod obsidian;
 pub mod opencode;
 pub mod superset;
@@ -50,6 +51,7 @@ impl Target {
             Target::Ghostty => ghostty::detect(),
             Target::Opencode => opencode::detect(),
             Target::Obsidian => obsidian::detect(),
+            Target::Iterm2 => iterm2::detect(),
         }
     }
 
@@ -60,6 +62,7 @@ impl Target {
             Target::Ghostty => ghostty::write(ir),
             Target::Opencode => opencode::write(ir),
             Target::Obsidian => obsidian::write(ir),
+            Target::Iterm2 => iterm2::write(ir),
         }
     }
 
@@ -71,6 +74,7 @@ impl Target {
             Target::Ghostty => ghostty::existing_theme_path(ir),
             Target::Opencode => opencode::existing_theme_path(ir),
             Target::Obsidian => obsidian::existing_theme_path(ir),
+            Target::Iterm2 => iterm2::existing_theme_path(ir),
         }
     }
 
@@ -82,6 +86,7 @@ impl Target {
             Target::Ghostty => ghostty::link(ir, written_path),
             Target::Opencode => opencode::link(ir, written_path),
             Target::Obsidian => obsidian::link(),
+            Target::Iterm2 => iterm2::link(ir, written_path),
         }
     }
 
@@ -93,6 +98,7 @@ impl Target {
             Target::Ghostty => ghostty::post_write_action(ir),
             Target::Opencode => opencode::post_write_action(ir, written_path),
             Target::Obsidian => obsidian::post_write_action(ir, written_path),
+            Target::Iterm2 => iterm2::post_write_action(ir, written_path),
         }
     }
 
@@ -103,16 +109,18 @@ impl Target {
             Target::Ghostty => "Ghostty",
             Target::Opencode => "OpenCode",
             Target::Obsidian => "Obsidian",
+            Target::Iterm2 => "iTerm2",
         }
     }
 
-    pub fn all() -> [Target; 5] {
+    pub fn all() -> [Target; 6] {
         [
             Target::Superset,
             Target::Warp,
             Target::Ghostty,
             Target::Opencode,
             Target::Obsidian,
+            Target::Iterm2,
         ]
     }
 }

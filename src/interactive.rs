@@ -8,6 +8,19 @@ pub fn is_tty() -> bool {
     std::io::stdin().is_terminal()
 }
 
+/// Let user pick dark or light theme type.
+pub fn select_theme_type() -> Result<crate::ir::ThemeType> {
+    let options = vec!["Dark", "Light"];
+    let selected = Select::new("Select theme type:", options)
+        .prompt()
+        .map_err(handle_inquire_error)?;
+    Ok(match selected {
+        "Dark" => crate::ir::ThemeType::Dark,
+        "Light" => crate::ir::ThemeType::Light,
+        _ => unreachable!("select_theme_type options are exhaustive"),
+    })
+}
+
 /// Let user pick which editor to use.
 pub fn select_editor(available: &[(Editor, String)]) -> Result<usize> {
     let options: Vec<String> = available
@@ -16,6 +29,7 @@ pub fn select_editor(available: &[(Editor, String)]) -> Result<usize> {
             Editor::Vscode => "VS Code".to_string(),
             Editor::Cursor => "Cursor".to_string(),
             Editor::Opencode => "OpenCode".to_string(),
+            Editor::Iterm2 => "iTerm2".to_string(),
         })
         .collect();
 
@@ -32,7 +46,7 @@ pub fn select_editor(available: &[(Editor, String)]) -> Result<usize> {
 /// Let user pick the target app.
 pub fn select_target(available: &[Target]) -> Result<Target> {
     if available.is_empty() {
-        anyhow::bail!("No supported target apps detected. Install Superset, Warp, Ghostty, OpenCode, or Obsidian first.");
+        anyhow::bail!("No supported target apps detected. Install Superset, Warp, Ghostty, OpenCode, Obsidian, or iTerm2 first.");
     }
 
     if available.len() == 1 {
