@@ -18,6 +18,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 2
+          token: ${{ secrets.PAT_WORKFLOW_ONLY }}
 
       - name: Check version change
         id: version
