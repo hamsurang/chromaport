@@ -31,7 +31,7 @@ console = "0.15"
 crossterm = "0.28"
 tempfile = "3"
 ureq = { version = "3", features = ["json"] }
-ratatui = "0.29"
+ratatui = "0.30"
 plist = "1"
 semver = "1"
 
