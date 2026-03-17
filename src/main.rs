@@ -4,6 +4,7 @@ mod apply;
 mod cli;
 mod color;
 mod converter;
+mod converter_iterm2;
 mod converter_opencode;
 mod create;
 mod interactive;
@@ -44,6 +45,11 @@ fn run() -> Result<()> {
         }
     }
 
+    // ── iTerm2 editor: separate flow (plist-based) ─────────────────────
+    if cli.editor == Some(Editor::Iterm2) {
+        return run_iterm2_import(&cli);
+    }
+
     // ── OpenCode editor: separate flow (no extensions dir) ────────────────
     if cli.editor == Some(Editor::Opencode) {
         return run_opencode_import(&cli);
@@ -56,7 +62,8 @@ fn run() -> Result<()> {
         anyhow::bail!(
             "No VS Code or Cursor installation found.\n\
              Expected extensions at ~/.vscode/extensions or ~/.cursor/extensions.\n\
-             Use `chromaport --editor opencode` for OpenCode themes, or\n\
+             Use `chromaport --editor opencode` for OpenCode themes,\n\
+             `chromaport --editor iterm2` for iTerm2 themes, or\n\
              run `chromaport presets install` to use preset themes instead."
         );
     }
@@ -72,6 +79,7 @@ fn run() -> Result<()> {
                         Editor::Vscode => "VS Code",
                         Editor::Cursor => "Cursor",
                         Editor::Opencode => "OpenCode",
+                        Editor::Iterm2 => "iTerm2",
                     }
                 )
             })?
@@ -82,6 +90,7 @@ fn run() -> Result<()> {
                 Editor::Vscode => "VS Code",
                 Editor::Cursor => "Cursor",
                 Editor::Opencode => "OpenCode",
+                Editor::Iterm2 => "iTerm2",
             }
         );
         all_editors.into_iter().next().unwrap()
@@ -97,6 +106,7 @@ fn run() -> Result<()> {
                         Editor::Vscode => "VS Code".to_string(),
                         Editor::Cursor => "Cursor".to_string(),
                         Editor::Opencode => "OpenCode".to_string(),
+                        Editor::Iterm2 => "iTerm2".to_string(),
                     },
                 )
             })
@@ -122,7 +132,7 @@ fn run() -> Result<()> {
     } else if available_targets.is_empty() {
         anyhow::bail!(
             "No supported target apps detected.\n\
-             Install Superset (~/.superset), Warp (~/.warp), Ghostty (~/.config/ghostty), OpenCode (~/.config/opencode), or Obsidian first."
+             Install Superset (~/.superset), Warp (~/.warp), Ghostty (~/.config/ghostty), OpenCode (~/.config/opencode), Obsidian, or iTerm2 first."
         );
     } else if available_targets.len() == 1 || !interactive::is_tty() {
         available_targets[0].clone()
@@ -185,7 +195,7 @@ fn run_opencode_import(cli: &Cli) -> Result<()> {
     } else if available_targets.is_empty() {
         anyhow::bail!(
             "No supported target apps detected.\n\
-             Install Superset, Warp, Ghostty, OpenCode, or Obsidian first."
+             Install Superset, Warp, Ghostty, OpenCode, Obsidian, or iTerm2 first."
         );
     } else if available_targets.len() == 1 || !interactive::is_tty() {
         available_targets[0].clone()
@@ -212,6 +222,67 @@ fn run_opencode_import(cli: &Cli) -> Result<()> {
     println!("\nConverting theme...");
     let theme_type = converter_opencode::infer_theme_type(&theme_map);
     let ir = converter_opencode::convert_opencode(&name, &theme_map, theme_type)?;
+
+    // Write, link, post-write, save IR
+    write_link_and_save(&selected_target, &ir)?;
+
+    Ok(())
+}
+
+/// iTerm2 import flow: scan iTerm2 Custom Color Presets → select → convert → write to target.
+fn run_iterm2_import(cli: &Cli) -> Result<()> {
+    let plist_path = match reader::detect_iterm2() {
+        Some(p) => p,
+        None => anyhow::bail!(
+            "iTerm2 not found.\n\
+             Expected preferences at ~/Library/Preferences/com.googlecode.iterm2.plist"
+        ),
+    };
+
+    let presets = reader::scan_iterm2_presets(&plist_path)?;
+    if presets.is_empty() {
+        anyhow::bail!(
+            "No custom color presets found in iTerm2.\n\
+             Create custom presets in iTerm2 \u{2192} Settings \u{2192} Profiles \u{2192} Colors \u{2192} Color Presets \u{2192} Save."
+        );
+    }
+
+    // Resolve target (before preset selection, consistent with run_opencode_import)
+    let available_targets: Vec<Target> = Target::all().into_iter().filter(|t| t.detect()).collect();
+    let selected_target = if let Some(ref t) = cli.target {
+        t.clone()
+    } else if available_targets.is_empty() {
+        anyhow::bail!(
+            "No supported target apps detected.\n\
+             Install Superset, Warp, Ghostty, OpenCode, Obsidian, or iTerm2 first."
+        );
+    } else if available_targets.len() == 1 || !interactive::is_tty() {
+        available_targets[0].clone()
+    } else {
+        interactive::select_target(&available_targets)?
+    };
+
+    // Select preset
+    if !interactive::is_tty() {
+        anyhow::bail!("Not a TTY. chromaport requires an interactive terminal.");
+    }
+
+    let preset_names: Vec<String> = presets.iter().map(|(n, _)| n.clone()).collect();
+    let selected_name = inquire::Select::new("Select iTerm2 color preset:", preset_names)
+        .prompt()
+        .map_err(|e| anyhow::anyhow!("Prompt error: {e}"))?;
+
+    let (name, preset) = presets
+        .into_iter()
+        .find(|(n, _)| n == &selected_name)
+        .expect("selected preset must exist in list");
+
+    // Select theme type
+    let theme_type = interactive::select_theme_type()?;
+
+    // Convert
+    println!("\nConverting theme...");
+    let ir = converter_iterm2::convert_iterm2(&name, &preset, theme_type)?;
 
     // Write, link, post-write, save IR
     write_link_and_save(&selected_target, &ir)?;
