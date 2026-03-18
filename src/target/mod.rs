@@ -82,6 +82,17 @@ impl Target {
         }
     }
 
+    /// Symlink 대상 경로 반환 (symlink 기반 타겟만 Some)
+    pub fn link_path(&self, ir: &ThemeIR) -> Option<PathBuf> {
+        match self {
+            Target::Ghostty => ghostty::link_path(ir),
+            Target::Warp => warp::link_path(ir),
+            Target::Opencode => opencode::link_path(ir),
+            Target::Wezterm => wezterm::link_path(ir),
+            Target::Superset | Target::Obsidian | Target::Iterm2 => None,
+        }
+    }
+
     /// Symlink 생성 (Ghostty/Warp/OpenCode/WezTerm 해당)
     pub fn link(&self, ir: &ThemeIR, written_path: &Path) -> LinkResult {
         match self {

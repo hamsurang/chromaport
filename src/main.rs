@@ -12,6 +12,7 @@ mod ir;
 mod presets;
 mod preview;
 mod reader;
+mod status;
 mod store;
 mod target;
 mod update;
@@ -40,6 +41,7 @@ fn run() -> Result<()> {
                 Command::Apply => "apply",
                 Command::Create => "create",
                 Command::Presets { .. } => "presets",
+                Command::Status => "status",
             };
             eprintln!(
                 "Note: --editor/--target options are not used with the '{}' command.",
@@ -54,6 +56,7 @@ fn run() -> Result<()> {
                 PresetsAction::List => return presets::run_list(),
                 PresetsAction::Install => return presets::run_install(),
             },
+            Command::Status => return status::run(),
         }
     }
 

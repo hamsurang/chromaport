@@ -43,6 +43,12 @@ pub fn existing_theme_path(ir: &ThemeIR) -> Option<PathBuf> {
     path.exists().then_some(path)
 }
 
+pub fn link_path(ir: &ThemeIR) -> Option<PathBuf> {
+    let config_dir = opencode_config_dir()?;
+    let slug = theme_slug(&ir.name);
+    Some(config_dir.join("themes").join(format!("{slug}.json")))
+}
+
 /// OpenCode themes are written directly to XDG config; symlink into themes dir.
 pub fn link(ir: &ThemeIR, written_path: &Path) -> LinkResult {
     let config_dir = match opencode_config_dir() {
