@@ -148,6 +148,10 @@ pub fn select_theme_with_preview(
                 match key.code {
                     KeyCode::Up => app.move_up(),
                     KeyCode::Down => app.move_down(),
+                    KeyCode::PageUp => app.move_page_up(),
+                    KeyCode::PageDown => app.move_page_down(),
+                    KeyCode::Home => app.move_to_top(),
+                    KeyCode::End => app.move_to_bottom(),
                     KeyCode::Enter => {
                         if let Some(entry) = app.select() {
                             return Ok(Some(entry));

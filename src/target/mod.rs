@@ -227,7 +227,7 @@ pub fn handle_post_write_action(action: PostWriteAction, target_name: &str) -> a
                 dest.display()
             );
             eprintln!(
-                "  Open Obsidian \u{2192} Settings \u{2192} Appearance \u{2192} Themes to activate \"{}\".",
+                "  Next: Open Obsidian \u{2192} Settings \u{2192} Appearance \u{2192} Themes \u{2192} select \"{}\".\n        Obsidian applies themes instantly \u{2014} no restart needed.",
                 theme_name
             );
         }

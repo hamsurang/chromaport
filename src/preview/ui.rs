@@ -240,10 +240,16 @@ pub fn render_theme_list(
     settings_ids: &[String],
     saved_flags: &[bool],
 ) {
-    let title = if filter.is_empty() {
-        " Select Theme ".to_string()
+    let position = if labels.is_empty() {
+        String::new()
     } else {
-        format!(" Select Theme [{}] ", filter)
+        format!("({}/{}) ", selected + 1, labels.len())
+    };
+
+    let title = if filter.is_empty() {
+        format!(" Select Theme {position}")
+    } else {
+        format!(" Select Theme {position}[{}] ", filter)
     };
 
     let block = Block::default().borders(Borders::ALL).title(title);
@@ -298,6 +304,8 @@ pub fn render_help_bar(f: &mut Frame, area: Rect) {
             Style::default().add_modifier(Modifier::BOLD),
         ),
         Span::raw("navigate  "),
+        Span::styled("PgUp/PgDn ", Style::default().add_modifier(Modifier::BOLD)),
+        Span::raw("page  "),
         Span::styled("Enter ", Style::default().add_modifier(Modifier::BOLD)),
         Span::raw("select  "),
         Span::styled("q ", Style::default().add_modifier(Modifier::BOLD)),

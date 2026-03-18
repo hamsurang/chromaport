@@ -6,6 +6,8 @@ use crate::store;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
+const PAGE_SIZE: usize = 10;
+
 /// Find theme labels that appear more than once (case-sensitive).
 fn duplicate_labels(themes: &[ThemeEntry]) -> HashSet<String> {
     let mut seen = HashSet::new();
@@ -150,6 +152,26 @@ impl<'a> PreviewApp<'a> {
         }
     }
 
+    pub fn move_page_up(&mut self) {
+        self.selected = self.selected.saturating_sub(PAGE_SIZE);
+    }
+
+    pub fn move_page_down(&mut self) {
+        if !self.filtered_indices.is_empty() {
+            self.selected = (self.selected + PAGE_SIZE).min(self.filtered_indices.len() - 1);
+        }
+    }
+
+    pub fn move_to_top(&mut self) {
+        self.selected = 0;
+    }
+
+    pub fn move_to_bottom(&mut self) {
+        if !self.filtered_indices.is_empty() {
+            self.selected = self.filtered_indices.len() - 1;
+        }
+    }
+
     pub fn select(&self) -> Option<ThemeEntry> {
         self.current_entry().cloned()
     }
@@ -186,5 +208,93 @@ impl<'a> PreviewApp<'a> {
         } else if self.selected >= self.filtered_indices.len() {
             self.selected = self.filtered_indices.len() - 1;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::cli::Target;
+
+    /// Create a minimal ThemeReader for testing (never actually reads files).
+    fn make_test_reader() -> ThemeReader {
+        ThemeReader::new(
+            PathBuf::from("/tmp/ext"),
+            PathBuf::from("/tmp/settings.json"),
+        )
+    }
+
+    /// Create N dummy ThemeEntry items for testing navigation.
+    fn make_entries(n: usize) -> Vec<ThemeEntry> {
+        (0..n)
+            .map(|i| ThemeEntry {
+                label: format!("Theme {i}"),
+                settings_id: format!("theme-{i}"),
+                ui_theme: "vs-dark".to_string(),
+                path: PathBuf::from(format!("/tmp/theme-{i}.json")),
+                extension_name: "test-ext".to_string(),
+            })
+            .collect()
+    }
+
+    fn make_app(n: usize) -> PreviewApp<'static> {
+        // Leak to get 'static lifetime for test convenience
+        let reader: &'static ThemeReader = Box::leak(Box::new(make_test_reader()));
+        let target: &'static Target = Box::leak(Box::new(Target::Ghostty));
+        PreviewApp::new(make_entries(n), None, reader, target, HashSet::new())
+    }
+
+    #[test]
+    fn move_page_down_advances_by_page_size() {
+        let mut app = make_app(30);
+        assert_eq!(app.selected_index(), 0);
+        app.move_page_down();
+        assert_eq!(app.selected_index(), 10);
+        app.move_page_down();
+        assert_eq!(app.selected_index(), 20);
+    }
+
+    #[test]
+    fn move_page_down_clamps_to_last() {
+        let mut app = make_app(15);
+        app.move_page_down();
+        assert_eq!(app.selected_index(), 10);
+        app.move_page_down();
+        assert_eq!(app.selected_index(), 14); // last item
+    }
+
+    #[test]
+    fn move_page_up_goes_back() {
+        let mut app = make_app(30);
+        app.move_to_bottom();
+        assert_eq!(app.selected_index(), 29);
+        app.move_page_up();
+        assert_eq!(app.selected_index(), 19);
+    }
+
+    #[test]
+    fn move_page_up_clamps_to_zero() {
+        let mut app = make_app(15);
+        app.move_page_up(); // already at 0
+        assert_eq!(app.selected_index(), 0);
+    }
+
+    #[test]
+    fn move_to_top_and_bottom() {
+        let mut app = make_app(20);
+        app.move_to_bottom();
+        assert_eq!(app.selected_index(), 19);
+        app.move_to_top();
+        assert_eq!(app.selected_index(), 0);
+    }
+
+    #[test]
+    fn navigation_on_empty_list_is_safe() {
+        let mut app = make_app(0);
+        app.move_page_down();
+        app.move_page_up();
+        app.move_to_top();
+        app.move_to_bottom();
+        assert_eq!(app.selected_index(), 0);
     }
 }

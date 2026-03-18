@@ -104,7 +104,7 @@ pub fn post_write_action(ir: &ThemeIR, _written_path: &Path) -> PostWriteAction 
         new_content,
         summary,
         decline_guide: format!("  Set \"theme\": \"{slug}\" in your OpenCode tui.json to apply."),
-        success_hint: Some("  Restart OpenCode to apply the theme.".to_string()),
+        success_hint: Some("Restart OpenCode to apply the theme.".to_string()),
     }
 }
 
