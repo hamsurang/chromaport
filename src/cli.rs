@@ -54,6 +54,7 @@ pub enum Command {
     )]
     Create,
     /// Manage preset themes
+    #[command(subcommand_required = true, arg_required_else_help = true)]
     Presets {
         #[command(subcommand)]
         action: PresetsAction,

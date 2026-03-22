@@ -99,7 +99,7 @@ Commands:
 Options:
   -v, --version          버전 출력
   -e, --editor <EDITOR>  소스 에디터 [가능한 값: vscode, cursor, opencode, iterm2]
-  -t, --target <TARGET>  대상 앱 [가능한 값: superset, warp, ghostty, opencode, obsidian, iterm2]
+  -t, --target <TARGET>  대상 앱 [가능한 값: superset, warp, ghostty, opencode, obsidian, iterm2, wezterm]
   -h, --help             도움말 출력
 ```
 
