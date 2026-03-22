@@ -6,7 +6,7 @@ description = "Migrate VS Code / Cursor / OpenCode / iTerm2 themes to Superset, 
 license = "MIT"
 repository = "https://github.com/hamsurang/chromaport"
 homepage = "https://github.com/hamsurang/chromaport"
-keywords = ["theme", "vscode", "cursor", "superset", "warp", "ghostty", "iterm2", "wezterm"]
+keywords = ["theme", "terminal", "color-scheme", "vscode", "converter"]
 categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]

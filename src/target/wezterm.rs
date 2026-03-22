@@ -236,13 +236,27 @@ fn format_wezterm_theme(ir: &ThemeIR) -> String {
 }
 
 /// Lua string literal 이스케이프 (code injection 방어)
+/// ASCII control characters (0x00-0x1F, 0x7F) 포함 전체 이스케이프
 fn lua_escape_string(s: &str) -> String {
-    s.replace('\\', "\\\\")
-        .replace('"', "\\\"")
-        .replace('\'', "\\'")
-        .replace('\n', "\\n")
-        .replace('\r', "\\r")
-        .replace('\0', "")
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '\\' => out.push_str("\\\\"),
+            '"' => out.push_str("\\\""),
+            '\'' => out.push_str("\\'"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\0' => {} // strip null bytes
+            c if c.is_ascii_control() => {
+                // Escape remaining control characters as \xNN
+                for b in (c as u32).to_le_bytes().iter().take(1) {
+                    out.push_str(&format!("\\x{:02x}", b));
+                }
+            }
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 /// Line-based Lua config 수정.
@@ -562,6 +576,9 @@ mod tests {
         assert_eq!(lua_escape_string("a\nb"), "a\\nb");
         assert_eq!(lua_escape_string("a\rb"), "a\\rb");
         assert_eq!(lua_escape_string("a\0b"), "ab");
+        // Control characters are escaped as \xNN
+        assert_eq!(lua_escape_string("a\x08b"), "a\\x08b");
+        assert_eq!(lua_escape_string("a\x1bb"), "a\\x1bb");
     }
 
     #[test]
