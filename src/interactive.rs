@@ -58,7 +58,7 @@ pub fn select_editor(available: &[(Editor, String)]) -> Result<usize> {
 /// Let user pick the target app.
 pub fn select_target(available: &[Target]) -> Result<Target> {
     if available.is_empty() {
-        anyhow::bail!("No supported target apps detected. Install Superset, Warp, Ghostty, OpenCode, Obsidian, or iTerm2 first.");
+        anyhow::bail!("No supported target apps detected. Install Superset, Warp, Ghostty, OpenCode, Obsidian, iTerm2, or WezTerm first.");
     }
 
     if available.len() == 1 {

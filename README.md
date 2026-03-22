@@ -161,6 +161,7 @@ Browse and install curated preset themes from the chromaport repository.
 | OpenCode | Symlinks to `~/.config/opencode/themes/` — auto-detected on restart              |
 | Obsidian | Copies to vault's `.obsidian/themes/` — activate in Settings → Appearance        |
 | iTerm2   | Symlinks to `~/.config/iterm2/themes/` — import via Color Presets                |
+| WezTerm  | Symlinks to `~/.config/wezterm/colors/` — auto-reloads config                    |
 
 ## How it works
 

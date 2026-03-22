@@ -40,7 +40,7 @@ pub fn run() -> Result<()> {
     if all_targets.is_empty() {
         anyhow::bail!(
             "No supported target apps detected.\n\
-             Install Superset, Warp, Ghostty, OpenCode, Obsidian, or iTerm2 first."
+             Install Superset, Warp, Ghostty, OpenCode, Obsidian, iTerm2, or WezTerm first."
         );
     }
 

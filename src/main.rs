@@ -144,7 +144,7 @@ fn run() -> Result<()> {
     } else if available_targets.is_empty() {
         anyhow::bail!(
             "No supported target apps detected.\n\
-             Install Superset (~/.superset), Warp (~/.warp), Ghostty (~/.config/ghostty), OpenCode (~/.config/opencode), Obsidian, or iTerm2 first."
+             Install Superset (~/.superset), Warp (~/.warp), Ghostty (~/.config/ghostty), OpenCode (~/.config/opencode), Obsidian, iTerm2, or WezTerm first."
         );
     } else if available_targets.len() == 1 || !interactive::is_tty() {
         available_targets[0].clone()
@@ -205,7 +205,7 @@ fn run_opencode_import(cli: &Cli) -> Result<()> {
     } else if available_targets.is_empty() {
         anyhow::bail!(
             "No supported target apps detected.\n\
-             Install Superset, Warp, Ghostty, OpenCode, Obsidian, or iTerm2 first."
+             Install Superset, Warp, Ghostty, OpenCode, Obsidian, iTerm2, or WezTerm first."
         );
     } else if available_targets.len() == 1 || !interactive::is_tty() {
         available_targets[0].clone()
@@ -262,7 +262,7 @@ fn run_iterm2_import(cli: &Cli) -> Result<()> {
     } else if available_targets.is_empty() {
         anyhow::bail!(
             "No supported target apps detected.\n\
-             Install Superset, Warp, Ghostty, OpenCode, Obsidian, or iTerm2 first."
+             Install Superset, Warp, Ghostty, OpenCode, Obsidian, iTerm2, or WezTerm first."
         );
     } else if available_targets.len() == 1 || !interactive::is_tty() {
         available_targets[0].clone()

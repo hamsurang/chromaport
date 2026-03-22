@@ -171,6 +171,7 @@ chromaport 저장소에서 엄선된 프리셋 테마를 탐색하고 설치할 
 | OpenCode | `~/.config/opencode/themes/`에 심볼릭 링크 — 재시작 시 자동 감지                 |
 | Obsidian | 볼트의 `.obsidian/themes/`에 복사 — 설정 → 외관에서 활성화                       |
 | iTerm2   | `~/.config/iterm2/themes/`에 심볼릭 링크 — Color Presets에서 가져오기            |
+| WezTerm  | `~/.config/wezterm/colors/`에 심볼릭 링크 — 설정 자동 리로드                     |
 
 ---
 
