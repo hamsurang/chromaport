@@ -4,6 +4,7 @@ pub mod obsidian;
 pub mod opencode;
 pub mod superset;
 pub mod warp;
+pub mod wezterm;
 
 use crate::cli::Target;
 use crate::ir::ThemeIR;
@@ -52,6 +53,7 @@ impl Target {
             Target::Opencode => opencode::detect(),
             Target::Obsidian => obsidian::detect(),
             Target::Iterm2 => iterm2::detect(),
+            Target::Wezterm => wezterm::detect(),
         }
     }
 
@@ -63,6 +65,7 @@ impl Target {
             Target::Opencode => opencode::write(ir),
             Target::Obsidian => obsidian::write(ir),
             Target::Iterm2 => iterm2::write(ir),
+            Target::Wezterm => wezterm::write(ir),
         }
     }
 
@@ -75,10 +78,11 @@ impl Target {
             Target::Opencode => opencode::existing_theme_path(ir),
             Target::Obsidian => obsidian::existing_theme_path(ir),
             Target::Iterm2 => iterm2::existing_theme_path(ir),
+            Target::Wezterm => wezterm::existing_theme_path(ir),
         }
     }
 
-    /// Symlink 생성 (Ghostty/Warp/OpenCode 해당)
+    /// Symlink 생성 (Ghostty/Warp/OpenCode/WezTerm 해당)
     pub fn link(&self, ir: &ThemeIR, written_path: &Path) -> LinkResult {
         match self {
             Target::Superset => superset::link(),
@@ -87,6 +91,7 @@ impl Target {
             Target::Opencode => opencode::link(ir, written_path),
             Target::Obsidian => obsidian::link(),
             Target::Iterm2 => iterm2::link(ir, written_path),
+            Target::Wezterm => wezterm::link(ir, written_path),
         }
     }
 
@@ -99,6 +104,7 @@ impl Target {
             Target::Opencode => opencode::post_write_action(ir, written_path),
             Target::Obsidian => obsidian::post_write_action(ir, written_path),
             Target::Iterm2 => iterm2::post_write_action(ir, written_path),
+            Target::Wezterm => wezterm::post_write_action(ir),
         }
     }
 
@@ -110,10 +116,11 @@ impl Target {
             Target::Opencode => "OpenCode",
             Target::Obsidian => "Obsidian",
             Target::Iterm2 => "iTerm2",
+            Target::Wezterm => "WezTerm",
         }
     }
 
-    pub fn all() -> [Target; 6] {
+    pub fn all() -> [Target; 7] {
         [
             Target::Superset,
             Target::Warp,
@@ -121,6 +128,7 @@ impl Target {
             Target::Opencode,
             Target::Obsidian,
             Target::Iterm2,
+            Target::Wezterm,
         ]
     }
 }
@@ -161,7 +169,21 @@ pub fn handle_post_write_action(action: PostWriteAction, target_name: &str) -> a
                     .duration_since(UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_secs();
-                let backup = config_path.with_file_name(format!("config.bak.{}", timestamp));
+                let backup = {
+                    let stem = config_path
+                        .file_stem()
+                        .unwrap_or_default()
+                        .to_string_lossy();
+                    match config_path.extension() {
+                        Some(ext) => config_path.with_file_name(format!(
+                            "{}.bak.{}.{}",
+                            stem,
+                            timestamp,
+                            ext.to_string_lossy()
+                        )),
+                        None => config_path.with_file_name(format!("{}.bak.{}", stem, timestamp)),
+                    }
+                };
                 std::fs::copy(&config_path, &backup)?;
                 eprintln!(
                     "  {} Backed up \u{2192} {}",
@@ -234,5 +256,50 @@ pub fn print_config_diff(old: &str, new: &str, path: &Path) {
                 eprint!("    {}{}", style.apply_to(sign), style.apply_to(&change));
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::PathBuf;
+
+    #[test]
+    fn backup_preserves_lua_extension() {
+        let config_path = PathBuf::from("/home/user/.config/wezterm/wezterm.lua");
+        let timestamp = 1711234567u64;
+        let stem = config_path.file_stem().unwrap().to_string_lossy();
+        let backup = match config_path.extension() {
+            Some(ext) => config_path.with_file_name(format!(
+                "{}.bak.{}.{}",
+                stem,
+                timestamp,
+                ext.to_string_lossy()
+            )),
+            None => config_path.with_file_name(format!("{}.bak.{}", stem, timestamp)),
+        };
+        assert_eq!(
+            backup.file_name().unwrap().to_string_lossy(),
+            "wezterm.bak.1711234567.lua"
+        );
+    }
+
+    #[test]
+    fn backup_handles_no_extension() {
+        let config_path = PathBuf::from("/home/user/.config/ghostty/config");
+        let timestamp = 1711234567u64;
+        let stem = config_path.file_stem().unwrap().to_string_lossy();
+        let backup = match config_path.extension() {
+            Some(ext) => config_path.with_file_name(format!(
+                "{}.bak.{}.{}",
+                stem,
+                timestamp,
+                ext.to_string_lossy()
+            )),
+            None => config_path.with_file_name(format!("{}.bak.{}", stem, timestamp)),
+        };
+        assert_eq!(
+            backup.file_name().unwrap().to_string_lossy(),
+            "config.bak.1711234567"
+        );
     }
 }

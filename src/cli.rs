@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 #[derive(Parser)]
 #[command(
     version,
-    about = "Migrate VS Code / Cursor / OpenCode / iTerm2 themes to Superset, Warp, Ghostty, OpenCode, Obsidian, iTerm2, and more",
+    about = "Migrate VS Code / Cursor / OpenCode / iTerm2 themes to Superset, Warp, Ghostty, OpenCode, Obsidian, iTerm2, WezTerm, and more",
     long_about = None,
     disable_version_flag = true,
     after_help = "\
@@ -54,6 +54,7 @@ pub enum Command {
     )]
     Create,
     /// Manage preset themes
+    #[command(subcommand_required = true, arg_required_else_help = true)]
     Presets {
         #[command(subcommand)]
         action: PresetsAction,
@@ -90,4 +91,5 @@ pub enum Target {
     Opencode,
     Obsidian,
     Iterm2,
+    Wezterm,
 }

@@ -13,7 +13,7 @@ fn help_flag_shows_usage() {
         .assert()
         .success()
         .stdout(predicate::str::contains(
-        "Migrate VS Code / Cursor / OpenCode / iTerm2 themes to Superset, Warp, Ghostty, OpenCode, Obsidian, iTerm2, and more",
+        "Migrate VS Code / Cursor / OpenCode / iTerm2 themes to Superset, Warp, Ghostty, OpenCode, Obsidian, iTerm2, WezTerm, and more",
     ));
 }
 
@@ -155,6 +155,20 @@ fn update_subcommand_accepts_short_yes_flag() {
         .assert()
         .success()
         .stdout(predicate::str::contains("-y"));
+}
+
+#[test]
+fn wezterm_target_accepted() {
+    let assert = cmd().args(["--target", "wezterm"]).assert();
+    let output = assert.get_output().clone();
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let combined = format!("{stdout}{stderr}");
+
+    assert!(
+        !combined.contains("invalid value"),
+        "wezterm should be a valid target: {combined}"
+    );
 }
 
 #[test]

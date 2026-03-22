@@ -91,7 +91,7 @@ Commands:
 Options:
   -v, --version          Print version
   -e, --editor <EDITOR>  Source editor [possible values: vscode, cursor, opencode, iterm2]
-  -t, --target <TARGET>  Target app [possible values: superset, warp, ghostty, opencode, obsidian, iterm2]
+  -t, --target <TARGET>  Target app [possible values: superset, warp, ghostty, opencode, obsidian, iterm2, wezterm]
   -h, --help             Print help
 ```
 
@@ -161,6 +161,7 @@ Browse and install curated preset themes from the chromaport repository.
 | OpenCode | Symlinks to `~/.config/opencode/themes/` — auto-detected on restart              |
 | Obsidian | Copies to vault's `.obsidian/themes/` — activate in Settings → Appearance        |
 | iTerm2   | Symlinks to `~/.config/iterm2/themes/` — import via Color Presets                |
+| WezTerm  | Symlinks to `~/.config/wezterm/colors/` — auto-reloads config                    |
 
 ## How it works
 

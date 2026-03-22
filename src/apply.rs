@@ -40,7 +40,7 @@ pub fn run() -> Result<()> {
     if all_targets.is_empty() {
         anyhow::bail!(
             "No supported target apps detected.\n\
-             Install Superset, Warp, Ghostty, OpenCode, Obsidian, or iTerm2 first."
+             Install Superset, Warp, Ghostty, OpenCode, Obsidian, iTerm2, or WezTerm first."
         );
     }
 
@@ -59,7 +59,7 @@ pub fn run() -> Result<()> {
         .collect();
 
     if applied.iter().all(|&a| a) {
-        println!(
+        eprintln!(
             "\n  {} \"{}\" is already applied to all detected targets.",
             console::style("✔").green(),
             selected_ir.name
@@ -84,7 +84,7 @@ pub fn run() -> Result<()> {
     };
 
     // ── 6. Apply to each selected target ────────────────────────────────
-    println!();
+    eprintln!();
     for t in &selected_targets {
         // Write
         let written_path = match t.write(&selected_ir) {
