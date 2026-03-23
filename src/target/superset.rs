@@ -42,8 +42,7 @@ pub fn link() -> LinkResult {
 pub fn post_write_action(written_path: &Path) -> PostWriteAction {
     PostWriteAction::Guide {
         message: format!(
-            "  Open Superset \u{2192} Settings \u{2192} Appearance \u{2192}\n  \
-             Import Theme \u{2192} select {}",
+            "  Theme written to {}.\n  Next: Open Superset \u{2192} Settings \u{2192} Appearance \u{2192} Import Theme \u{2192} select the file above.\n        You may need to restart Superset for the theme to appear.",
             written_path.display()
         ),
     }

@@ -143,7 +143,7 @@ pub fn post_write_action(ir: &ThemeIR) -> PostWriteAction {
             "  Add `theme = {}` to your Ghostty config to apply.",
             safe_name
         ),
-        success_hint: Some("  Reload Ghostty config (Cmd+Shift+,) to apply.".to_string()),
+        success_hint: Some("Ghostty auto-reloads config \u{2014} no restart needed.".to_string()),
     }
 }
 

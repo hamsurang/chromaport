@@ -14,6 +14,7 @@ use std::io;
 
 use super::ui;
 use super::TerminalGuard;
+use super::PAGE_SIZE;
 
 fn build_label(ir: &ThemeIR) -> String {
     let type_tag = match ir.theme_type {
@@ -96,6 +97,20 @@ pub fn select_ir_with_preview(themes: Vec<ThemeIR>, target: &Target) -> Result<O
                             selected += 1;
                         }
                     }
+                    KeyCode::PageUp => {
+                        selected = selected.saturating_sub(PAGE_SIZE);
+                    }
+                    KeyCode::PageDown => {
+                        if !filtered.is_empty() {
+                            selected = (selected + PAGE_SIZE).min(filtered.len().saturating_sub(1));
+                        }
+                    }
+                    KeyCode::Home => {
+                        selected = 0;
+                    }
+                    KeyCode::End => {
+                        selected = filtered.len().saturating_sub(1);
+                    }
                     KeyCode::Enter => {
                         if let Some((orig_idx, _)) = filtered.get(selected) {
                             return Ok(Some(themes[*orig_idx].clone()));
@@ -137,10 +152,12 @@ fn render_ir_list(
 ) {
     use ratatui::widgets::{Block, Borders};
 
+    let position = ui::format_position(selected, filtered.len());
+
     let title = if filter.is_empty() {
-        " Saved Themes ".to_string()
+        format!(" Saved Themes {position}")
     } else {
-        format!(" Saved Themes [{}] ", filter)
+        format!(" Saved Themes {position}[{}] ", filter)
     };
 
     let block = Block::default().borders(Borders::ALL).title(title);
@@ -184,6 +201,8 @@ fn render_apply_help_bar(f: &mut ratatui::Frame, area: ratatui::layout::Rect) {
             Style::default().add_modifier(Modifier::BOLD),
         ),
         Span::raw("navigate  "),
+        Span::styled("PgUp/PgDn ", Style::default().add_modifier(Modifier::BOLD)),
+        Span::raw("page  "),
         Span::styled("Enter ", Style::default().add_modifier(Modifier::BOLD)),
         Span::raw("select  "),
         Span::styled("q ", Style::default().add_modifier(Modifier::BOLD)),

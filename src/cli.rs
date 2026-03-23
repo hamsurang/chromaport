@@ -59,6 +59,11 @@ pub enum Command {
         #[command(subcommand)]
         action: PresetsAction,
     },
+    /// Show saved themes, applied targets, and detected editors
+    #[command(
+        long_about = "Show current chromaport status.\n\nDisplays saved themes, which targets they're applied to (via symlinks),\ndetected editors, and available target apps."
+    )]
+    Status,
 }
 
 #[derive(Subcommand)]
@@ -81,6 +86,17 @@ pub enum Editor {
     Cursor,
     Opencode,
     Iterm2,
+}
+
+impl Editor {
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Editor::Vscode => "VS Code",
+            Editor::Cursor => "Cursor",
+            Editor::Opencode => "OpenCode",
+            Editor::Iterm2 => "iTerm2",
+        }
+    }
 }
 
 #[derive(Clone, ValueEnum, Debug, PartialEq)]

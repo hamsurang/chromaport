@@ -94,8 +94,7 @@ pub fn link(ir: &ThemeIR, written_path: &Path) -> LinkResult {
 pub fn post_write_action(written_path: &Path) -> PostWriteAction {
     PostWriteAction::Guide {
         message: format!(
-            "  Theme written to {}.\n  \
-             Open Warp \u{2192} Settings \u{2192} Appearance \u{2192} Themes to select it.",
+            "  Theme written to {}.\n  Next: Open Warp \u{2192} Settings \u{2192} Appearance \u{2192} Themes to select it.\n        Warp auto-detects new themes \u{2014} no restart needed.",
             written_path.display()
         ),
     }

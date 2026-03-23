@@ -67,7 +67,7 @@ pub fn post_write_action(_ir: &ThemeIR, written_path: &Path) -> PostWriteAction 
              \x20 1. Open iTerm2 \u{2192} Settings \u{2192} Profiles \u{2192} Colors\n\
              \x20 2. Click \"Color Presets...\" \u{2192} \"Import...\"\n\
              \x20 3. Select {}\n\
-             \x20 4. Choose the imported preset from \"Color Presets...\"",
+             \x20 4. Choose the imported preset from \"Color Presets...\"\n\n  Tip: Use `chromaport apply` to re-apply this theme to other targets later.",
             written_path.display()
         ),
     }

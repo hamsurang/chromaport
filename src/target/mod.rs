@@ -82,6 +82,17 @@ impl Target {
         }
     }
 
+    /// Symlink 대상 경로 반환 (symlink 기반 타겟만 Some)
+    pub fn link_path(&self, ir: &ThemeIR) -> Option<PathBuf> {
+        match self {
+            Target::Ghostty => ghostty::link_path(ir),
+            Target::Warp => warp::link_path(ir),
+            Target::Opencode => opencode::link_path(ir),
+            Target::Wezterm => wezterm::link_path(ir),
+            Target::Superset | Target::Obsidian | Target::Iterm2 => None,
+        }
+    }
+
     /// Symlink 생성 (Ghostty/Warp/OpenCode/WezTerm 해당)
     pub fn link(&self, ir: &ThemeIR, written_path: &Path) -> LinkResult {
         match self {
@@ -227,7 +238,7 @@ pub fn handle_post_write_action(action: PostWriteAction, target_name: &str) -> a
                 dest.display()
             );
             eprintln!(
-                "  Open Obsidian \u{2192} Settings \u{2192} Appearance \u{2192} Themes to activate \"{}\".",
+                "  Next: Open Obsidian \u{2192} Settings \u{2192} Appearance \u{2192} Themes \u{2192} select \"{}\".\n        Obsidian applies themes instantly \u{2014} no restart needed.",
                 theme_name
             );
         }

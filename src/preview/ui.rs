@@ -8,6 +8,15 @@ use ratatui::{
     Frame,
 };
 
+/// Format a position indicator like "(3/15) " for list titles.
+pub fn format_position(selected: usize, total: usize) -> String {
+    if total == 0 {
+        String::new()
+    } else {
+        format!("({}/{}) ", selected + 1, total)
+    }
+}
+
 /// Convert a HexColor to a ratatui Color.
 pub fn to_color(hex: &HexColor) -> Color {
     let (r, g, b) = hex.to_rgb();
@@ -240,10 +249,12 @@ pub fn render_theme_list(
     settings_ids: &[String],
     saved_flags: &[bool],
 ) {
+    let position = format_position(selected, labels.len());
+
     let title = if filter.is_empty() {
-        " Select Theme ".to_string()
+        format!(" Select Theme {position}")
     } else {
-        format!(" Select Theme [{}] ", filter)
+        format!(" Select Theme {position}[{}] ", filter)
     };
 
     let block = Block::default().borders(Borders::ALL).title(title);
@@ -298,6 +309,8 @@ pub fn render_help_bar(f: &mut Frame, area: Rect) {
             Style::default().add_modifier(Modifier::BOLD),
         ),
         Span::raw("navigate  "),
+        Span::styled("PgUp/PgDn ", Style::default().add_modifier(Modifier::BOLD)),
+        Span::raw("page  "),
         Span::styled("Enter ", Style::default().add_modifier(Modifier::BOLD)),
         Span::raw("select  "),
         Span::styled("q ", Style::default().add_modifier(Modifier::BOLD)),

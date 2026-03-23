@@ -90,8 +90,8 @@ pub fn run() -> Result<()> {
         let written_path = match t.write(&selected_ir) {
             Ok(path) => {
                 eprintln!(
-                    "  {} {} → {}",
-                    console::style("✔").green(),
+                    "  {} Wrote {} \u{2192} {}",
+                    console::style("\u{2714}").green(),
                     selected_ir.name,
                     path.display()
                 );
@@ -112,11 +112,19 @@ pub fn run() -> Result<()> {
         let link_result = t.link(&selected_ir, &written_path);
         match &link_result {
             LinkResult::Linked(p) => {
-                eprintln!("  Linked → {}", p.display());
+                eprintln!(
+                    "  {} Linked \u{2192} {}",
+                    console::style("\u{2714}").green(),
+                    p.display()
+                );
             }
             LinkResult::Conflict(path) => match interactive::confirm_replace_with_symlink(path) {
                 Ok(true) => match store::create_symlink(&written_path, path, true) {
-                    Ok(()) => eprintln!("  Linked → {}", path.display()),
+                    Ok(()) => eprintln!(
+                        "  {} Linked \u{2192} {}",
+                        console::style("\u{2714}").green(),
+                        path.display()
+                    ),
                     Err(e) => eprintln!("  {}: {}", console::style("Warning").yellow(), e),
                 },
                 Ok(false) => eprintln!("  Skipped symlink."),

@@ -12,6 +12,7 @@ mod ir;
 mod presets;
 mod preview;
 mod reader;
+mod status;
 mod store;
 mod target;
 mod update;
@@ -40,6 +41,7 @@ fn run() -> Result<()> {
                 Command::Apply => "apply",
                 Command::Create => "create",
                 Command::Presets { .. } => "presets",
+                Command::Status => "status",
             };
             eprintln!(
                 "Note: --editor/--target options are not used with the '{}' command.",
@@ -54,6 +56,7 @@ fn run() -> Result<()> {
                 PresetsAction::List => return presets::run_list(),
                 PresetsAction::Install => return presets::run_install(),
             },
+            Command::Status => return status::run(),
         }
     }
 
@@ -166,9 +169,9 @@ fn run() -> Result<()> {
     };
 
     // ── 5. Convert ────────────────────────────────────────────────────────
-    eprintln!("\nConverting theme...");
     let theme_json = reader.read_theme_json(&selected_entry)?;
     let ir = converter::convert(&selected_entry, &theme_json)?;
+    eprintln!("\nConverting {}...", ir.name);
 
     // ── 6–9. Write, link, post-write, save IR ───────────────────────────
     write_link_and_save(&selected_target, &ir)?;
@@ -227,9 +230,9 @@ fn run_opencode_import(cli: &Cli) -> Result<()> {
         .unwrap();
 
     // Convert
-    eprintln!("\nConverting theme...");
     let theme_type = converter_opencode::infer_theme_type(&theme_map);
     let ir = converter_opencode::convert_opencode(&name, &theme_map, theme_type)?;
+    eprintln!("\nConverting {}...", ir.name);
 
     // Write, link, post-write, save IR
     write_link_and_save(&selected_target, &ir)?;
@@ -287,8 +290,8 @@ fn run_iterm2_import(cli: &Cli) -> Result<()> {
     let theme_type = interactive::select_theme_type()?;
 
     // Convert
-    eprintln!("\nConverting theme...");
     let ir = converter_iterm2::convert_iterm2(&name, &preset, theme_type)?;
+    eprintln!("\nConverting {}...", ir.name);
 
     // Write, link, post-write, save IR
     write_link_and_save(&selected_target, &ir)?;
@@ -311,7 +314,7 @@ fn write_link_and_save(target: &Target, ir: &ir::ThemeIR) -> Result<()> {
     let written_path = match target.write(ir) {
         Ok(path) => {
             eprintln!(
-                "  {} {} \u{2192} {}",
+                "  {} Wrote {} \u{2192} {}",
                 console::style("\u{2714}").green(),
                 ir.name,
                 path.display()
@@ -327,11 +330,19 @@ fn write_link_and_save(target: &Target, ir: &ir::ThemeIR) -> Result<()> {
     let link_result = target.link(ir, &written_path);
     match &link_result {
         LinkResult::Linked(p) => {
-            eprintln!("  Linked \u{2192} {}", p.display());
+            eprintln!(
+                "  {} Linked \u{2192} {}",
+                console::style("\u{2714}").green(),
+                p.display()
+            );
         }
         LinkResult::Conflict(path) => match interactive::confirm_replace_with_symlink(path) {
             Ok(true) => match store::create_symlink(&written_path, path, true) {
-                Ok(()) => eprintln!("  Linked \u{2192} {}", path.display()),
+                Ok(()) => eprintln!(
+                    "  {} Linked \u{2192} {}",
+                    console::style("\u{2714}").green(),
+                    path.display()
+                ),
                 Err(e) => eprintln!("  {}: {}", console::style("Warning").yellow(), e),
             },
             Ok(false) => eprintln!("  Skipped symlink."),
@@ -351,7 +362,11 @@ fn write_link_and_save(target: &Target, ir: &ir::ThemeIR) -> Result<()> {
 
     // Save IR (best-effort)
     match store::save_ir(ir) {
-        Ok(ir_path) => eprintln!("  Saved theme IR to {}", ir_path.display()),
+        Ok(ir_path) => eprintln!(
+            "  {} Saved IR \u{2192} {}",
+            console::style("\u{2714}").green(),
+            ir_path.display()
+        ),
         Err(e) => eprintln!(
             "  {}: failed to save theme IR: {e}",
             console::style("Warning").yellow()
