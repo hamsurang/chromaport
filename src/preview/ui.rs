@@ -8,6 +8,15 @@ use ratatui::{
     Frame,
 };
 
+/// Format a position indicator like "(3/15) " for list titles.
+pub fn format_position(selected: usize, total: usize) -> String {
+    if total == 0 {
+        String::new()
+    } else {
+        format!("({}/{}) ", selected + 1, total)
+    }
+}
+
 /// Convert a HexColor to a ratatui Color.
 pub fn to_color(hex: &HexColor) -> Color {
     let (r, g, b) = hex.to_rgb();
@@ -240,11 +249,7 @@ pub fn render_theme_list(
     settings_ids: &[String],
     saved_flags: &[bool],
 ) {
-    let position = if labels.is_empty() {
-        String::new()
-    } else {
-        format!("({}/{}) ", selected + 1, labels.len())
-    };
+    let position = format_position(selected, labels.len());
 
     let title = if filter.is_empty() {
         format!(" Select Theme {position}")

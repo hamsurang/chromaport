@@ -1,17 +1,8 @@
-use crate::cli::{Editor, Target};
+use crate::cli::Target;
 use crate::reader::detect_editors;
 use crate::store;
 use anyhow::Result;
 use std::fs;
-
-fn editor_name(e: &Editor) -> &'static str {
-    match e {
-        Editor::Vscode => "VS Code",
-        Editor::Cursor => "Cursor",
-        Editor::Opencode => "OpenCode",
-        Editor::Iterm2 => "iTerm2",
-    }
-}
 
 pub fn run() -> Result<()> {
     let ir_files = store::list_ir_files()?;
@@ -54,7 +45,7 @@ pub fn run() -> Result<()> {
     // Detected editors
     let editors = detect_editors();
     if !editors.is_empty() {
-        let names: Vec<&str> = editors.iter().map(|(e, _, _)| editor_name(e)).collect();
+        let names: Vec<&str> = editors.iter().map(|(e, _, _)| e.display_name()).collect();
         println!("\nDetected editors: {}", names.join(", "));
     }
 

@@ -14,6 +14,7 @@ use std::io;
 
 use super::ui;
 use super::TerminalGuard;
+use super::PAGE_SIZE;
 
 fn build_label(ir: &ThemeIR) -> String {
     let type_tag = match ir.theme_type {
@@ -97,11 +98,11 @@ pub fn select_ir_with_preview(themes: Vec<ThemeIR>, target: &Target) -> Result<O
                         }
                     }
                     KeyCode::PageUp => {
-                        selected = selected.saturating_sub(10);
+                        selected = selected.saturating_sub(PAGE_SIZE);
                     }
                     KeyCode::PageDown => {
                         if !filtered.is_empty() {
-                            selected = (selected + 10).min(filtered.len().saturating_sub(1));
+                            selected = (selected + PAGE_SIZE).min(filtered.len().saturating_sub(1));
                         }
                     }
                     KeyCode::Home => {
@@ -151,11 +152,7 @@ fn render_ir_list(
 ) {
     use ratatui::widgets::{Block, Borders};
 
-    let position = if filtered.is_empty() {
-        String::new()
-    } else {
-        format!("({}/{}) ", selected + 1, filtered.len())
-    };
+    let position = ui::format_position(selected, filtered.len());
 
     let title = if filter.is_empty() {
         format!(" Saved Themes {position}")

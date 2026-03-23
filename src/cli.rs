@@ -88,6 +88,17 @@ pub enum Editor {
     Iterm2,
 }
 
+impl Editor {
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            Editor::Vscode => "VS Code",
+            Editor::Cursor => "Cursor",
+            Editor::Opencode => "OpenCode",
+            Editor::Iterm2 => "iTerm2",
+        }
+    }
+}
+
 #[derive(Clone, ValueEnum, Debug, PartialEq)]
 pub enum Target {
     Superset,

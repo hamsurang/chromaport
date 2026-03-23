@@ -3,6 +3,8 @@ pub(crate) mod apply_preview;
 pub(crate) mod color_picker;
 pub(crate) mod ui;
 
+pub(crate) const PAGE_SIZE: usize = 10;
+
 use crate::cli::Target;
 use crate::reader::{ThemeEntry, ThemeReader};
 use crate::store;

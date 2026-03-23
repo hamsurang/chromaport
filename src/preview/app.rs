@@ -6,7 +6,7 @@ use crate::store;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
-const PAGE_SIZE: usize = 10;
+use super::PAGE_SIZE;
 
 /// Find theme labels that appear more than once (case-sensitive).
 fn duplicate_labels(themes: &[ThemeEntry]) -> HashSet<String> {
@@ -30,6 +30,7 @@ pub struct PreviewApp<'a> {
     filtered_indices: Vec<usize>,
     ir_cache: HashMap<PathBuf, Result<ThemeIR, String>>,
     saved_slugs: HashSet<String>,
+    dupe_labels: HashSet<String>,
 }
 
 impl<'a> PreviewApp<'a> {
@@ -41,6 +42,7 @@ impl<'a> PreviewApp<'a> {
         saved_slugs: HashSet<String>,
     ) -> Self {
         let filtered_indices: Vec<usize> = (0..themes.len()).collect();
+        let dupe_labels = duplicate_labels(&themes);
         Self {
             all_themes: themes,
             active_id,
@@ -51,6 +53,7 @@ impl<'a> PreviewApp<'a> {
             filtered_indices,
             ir_cache: HashMap::new(),
             saved_slugs,
+            dupe_labels,
         }
     }
 
@@ -72,12 +75,11 @@ impl<'a> PreviewApp<'a> {
 
     /// Get filtered theme labels (appends extension name for duplicates).
     pub fn filtered_labels(&self) -> Vec<String> {
-        let dupes = duplicate_labels(&self.all_themes);
         self.filtered_indices
             .iter()
             .map(|&i| {
                 let t = &self.all_themes[i];
-                if dupes.contains(&t.label) {
+                if self.dupe_labels.contains(&t.label) {
                     format!("{} ({})", t.label, t.extension_name)
                 } else {
                     t.label.clone()
