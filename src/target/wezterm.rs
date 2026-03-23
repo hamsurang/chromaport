@@ -56,7 +56,29 @@ pub fn detect() -> bool {
     if wezterm_config_path().is_some() {
         return true;
     }
-    wezterm_config_dir().map(|d| d.exists()).unwrap_or(false)
+    if wezterm_config_dir().map(|d| d.exists()).unwrap_or(false) {
+        return true;
+    }
+    // Config이 아직 없어도 앱이 설치되어 있으면 감지
+    is_app_installed()
+}
+
+/// WezTerm 앱 설치 여부 확인 (바이너리 또는 macOS .app 번들)
+fn is_app_installed() -> bool {
+    use std::process::Command;
+
+    // macOS: /Applications/WezTerm.app
+    #[cfg(target_os = "macos")]
+    if Path::new("/Applications/WezTerm.app").exists() {
+        return true;
+    }
+
+    // `which wezterm`으로 PATH에 있는지 확인
+    Command::new("which")
+        .arg("wezterm")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
 }
 
 /// 테마 파일명 생성 (원본 이름 유지 + .toml 확장자)

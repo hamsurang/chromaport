@@ -1,6 +1,6 @@
 [package]
 name = "chromaport"
-version = "0.12.0"
+version = "0.12.1"
 edition = "2021"
 description = "Migrate VS Code / Cursor / OpenCode / iTerm2 themes to Superset, Warp, Ghostty, OpenCode, Obsidian, iTerm2, WezTerm, and more"
 license = "MIT"
